@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/lib/auth.tsx","./src/lib/supabase.ts","./src/pages/Admin.tsx","./src/pages/Highlights.tsx","./src/pages/PlayerDetail.tsx","./src/pages/Players.tsx","./src/pages/Rankings.tsx","./src/pages/ScrimDetail.tsx","./src/pages/Scrims.tsx"],"version":"5.9.3"}
