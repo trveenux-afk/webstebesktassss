@@ -47,8 +47,8 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
   const [expanded, setExpanded] = useState(false);
   const playerPositions = player.positions?.length ? player.positions : [player.position];
   const fit = settings?.object_fit ?? "cover";
-  const pos = (settings?.object_position ?? "center").replace("-", " ");
-  const zoom = settings?.zoom ?? 100;
+  const pos = (player.photo_object_position || settings?.object_position || "center").replace("-", " ");
+  const zoom = player.photo_zoom || settings?.zoom || 100;
 
   return (
     <>
@@ -56,7 +56,7 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
       {isOwnCard && <div className="bg-blue-500/10 px-3 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-blue-300">Your Card</div>}
       <div className="relative aspect-[4/3] overflow-hidden bg-bjk-black">
         {player.photo_url ? (
-          <img src={player.photo_url} alt={player.name} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setExpanded(true); }} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="h-full w-full cursor-zoom-in transition-transform duration-500 group-hover:scale-105" />
+          <img src={player.photo_url} alt={player.name} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setExpanded(true); }} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="h-full w-full cursor-zoom-in" />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl font-bold text-white/20">{player.name.charAt(0).toUpperCase()}</div>
         )}

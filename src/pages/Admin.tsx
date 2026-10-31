@@ -281,25 +281,13 @@ function SquadManager({ users, squadPlayers, squadUserIds, onRefresh }: { users:
 }
 
 function PhotoSettings({ settings, setSettings, onSave, squadPlayers, onRefresh }: { settings: SiteSettings; setSettings: (s: SiteSettings) => void; onSave: () => void; squadPlayers: Player[]; onRefresh: () => void }) {
-  const posOptions = ["center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
   const sizeMap = { small: "w-32", medium: "w-48", large: "w-64" };
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-white/10 bg-bjk-dark p-6">
-        <h3 className="mb-4 font-display text-lg font-semibold uppercase">Photo Display Settings</h3>
-        <div className="mb-4">
-          <span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Object Fit</span>
-          <div className="flex gap-2">{(["cover", "contain"] as const).map((fit) => <button key={fit} onClick={() => setSettings({ ...settings, object_fit: fit })} className={`rounded-lg border px-4 py-2 text-sm transition-all-smooth ${settings.object_fit === fit ? "border-white bg-white text-black" : "border-white/15 text-white/60 hover:border-white/40"}`}>{fit}</button>)}</div>
-        </div>
-        <div className="mb-4">
-          <span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Position</span>
-          <div className="flex flex-wrap gap-2">{posOptions.map((pos) => <button key={pos} onClick={() => setSettings({ ...settings, object_position: pos })} className={`rounded-lg border px-3 py-1.5 text-xs transition-all-smooth ${settings.object_position === pos ? "border-white bg-white text-black" : "border-white/15 text-white/60 hover:border-white/40"}`}>{pos}</button>)}</div>
-        </div>
-        <div className="mb-4">
-          <span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Zoom: %{settings.zoom}</span>
-          <input type="range" min={50} max={200} step={10} value={settings.zoom} onChange={(e) => setSettings({ ...settings, zoom: Number(e.target.value) })} className="w-full" />
-        </div>
+        <h3 className="mb-2 font-display text-lg font-semibold uppercase">Card Display Settings</h3>
+        <p className="mb-4 text-sm text-white/50">Image crop and zoom are set separately for each player below.</p>
         <div className="mb-4">
           <span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Card Size</span>
           <div className="flex gap-2">{(["small", "medium", "large"] as const).map((size) => <button key={size} onClick={() => setSettings({ ...settings, card_size: size })} className={`rounded-lg border px-4 py-2 text-sm transition-all-smooth ${settings.card_size === size ? "border-white bg-white text-black" : "border-white/15 text-white/60 hover:border-white/40"}`}>{size}</button>)}</div>
@@ -314,7 +302,7 @@ function PhotoSettings({ settings, setSettings, onSave, squadPlayers, onRefresh 
         <div className="flex justify-center">
           <div className={`${sizeMap[settings.card_size]} overflow-hidden rounded-xl border border-white/20 bg-bjk-black card-enter`}>
             <div className="relative aspect-[4/3] overflow-hidden bg-bjk-black">
-              <img src="https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg?auto=compress&cs=tinysrgb&w=400" alt="Preview" style={{ objectFit: settings.object_fit, objectPosition: settings.object_position.replace("-", " "), transform: `scale(${settings.zoom / 100})` }} className="h-full w-full transition-all-smooth" />
+              <img src="https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg?auto=compress&cs=tinysrgb&w=400" alt="Preview" className="h-full w-full object-cover" />
               <div className="absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-black/70 font-display text-sm font-bold">85</div>
             </div>
             <div className="p-2"><h4 className="truncate font-display text-sm font-semibold uppercase">Sample Player</h4><p className="text-xs text-white/40">OVR 85</p></div>
@@ -329,12 +317,27 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [cardUrl, setCardUrl] = useState("");
+  const [photoPosition, setPhotoPosition] = useState("center");
+  const [photoZoom, setPhotoZoom] = useState(100);
   const [msg, setMsg] = useState("");
 
-  function startEdit(player: Player) { setEditingPlayer(player); setPhotoUrl(player.photo_url ?? ""); setCardUrl(player.card_url ?? ""); setMsg(""); }
+  function startEdit(player: Player) {
+    setEditingPlayer(player);
+    setPhotoUrl(player.photo_url ?? "");
+    setCardUrl(player.card_url ?? "");
+    setPhotoPosition(player.photo_object_position || "center");
+    setPhotoZoom(player.photo_zoom || 100);
+    setMsg("");
+  }
   async function savePhoto() {
     if (!editingPlayer) return;
-    const { error } = await supabase.rpc("update_player_photo", { p_player_id: editingPlayer.id, p_photo_url: photoUrl.trim() || null, p_card_url: cardUrl.trim() || null });
+    const { error } = await supabase.rpc("update_player_photo_crop", {
+      p_player_id: editingPlayer.id,
+      p_photo_url: photoUrl.trim() || null,
+      p_card_url: cardUrl.trim() || null,
+      p_photo_object_position: photoPosition,
+      p_photo_zoom: photoZoom,
+    });
     if (error) { setMsg("Could not save."); return; }
     setMsg("Photo updated.");
     setEditingPlayer(null);
@@ -343,7 +346,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
 
   return (
     <div className="rounded-xl border border-white/10 bg-bjk-dark p-6">
-      <h3 className="mb-4 font-display text-lg font-semibold uppercase">Squad Photo Editor</h3>
+      <h3 className="mb-2 font-display text-lg font-semibold uppercase">Squad Photo Editor</h3>
+      <p className="mb-4 text-sm text-white/50">Choose a player, add their image, then use the crop preview to center and resize it for their card.</p>
       {editingPlayer ? (
         <div className="space-y-4 card-enter">
           <div className="flex items-center gap-3">
@@ -354,6 +358,19 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
           </div>
           <label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Photo URL</span><input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="https://..." /></label>
           <label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Card URL</span><input value={cardUrl} onChange={(e) => setCardUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="https://..." /></label>
+          {photoUrl && (
+            <div className="rounded-xl border border-white/10 bg-bjk-black p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Move the focus and zoom the image inside the card.</p></div>
+                <span className="text-xs text-white/50">{photoZoom}%</span>
+              </div>
+              <div className="mx-auto mb-4 aspect-[4/3] max-w-sm overflow-hidden rounded-lg border border-white/15 bg-black">
+                <img src={photoUrl} alt={`${editingPlayer.name} preview`} style={{ objectFit: "cover", objectPosition: photoPosition.replace("-", " "), transform: `scale(${photoZoom / 100})` }} className="h-full w-full" />
+              </div>
+              <label className="block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Focus point</span><select value={photoPosition} onChange={(e) => setPhotoPosition(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm"><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option><option value="top left">Top left</option><option value="top right">Top right</option><option value="bottom left">Bottom left</option><option value="bottom right">Bottom right</option></select></label>
+              <label className="mt-4 block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Zoom</span><input type="range" min={50} max={200} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label>
+            </div>
+          )}
           {msg && <p className="text-sm text-white/70">{msg}</p>}
           <div className="flex gap-2">
             <button onClick={savePhoto} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition-all-smooth hover:bg-white/90">Save</button>

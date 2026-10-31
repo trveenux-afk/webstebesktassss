@@ -67,8 +67,8 @@ export default function PlayerDetail() {
 
   const totals = { goals: stats.reduce((a, x) => a + x.goals, 0), assists: stats.reduce((a, x) => a + x.assists, 0), tackles: stats.reduce((a, x) => a + x.tackles, 0), saves: stats.reduce((a, x) => a + x.saves, 0) };
   const fit = settings?.object_fit ?? "cover";
-  const pos = (settings?.object_position ?? "center").replace("-", " ");
-  const zoom = settings?.zoom ?? 100;
+  const pos = (player.photo_object_position || settings?.object_position || "center").replace("-", " ");
+  const zoom = player.photo_zoom || settings?.zoom || 100;
   const displayPhoto = player.card_url || player.photo_url;
 
   return (
