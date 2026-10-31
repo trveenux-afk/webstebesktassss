@@ -47,7 +47,7 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
   const [expanded, setExpanded] = useState(false);
   const playerPositions = player.positions?.length ? player.positions : [player.position];
   const fit = settings?.object_fit ?? "cover";
-  const pos = (player.photo_object_position || settings?.object_position || "center").replace("-", " ");
+  const pos = `${player.photo_position_x ?? 50}% ${player.photo_position_y ?? 50}%`;
   const zoom = player.photo_zoom || settings?.zoom || 100;
 
   return (

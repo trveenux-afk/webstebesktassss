@@ -55,9 +55,9 @@ export default function PlayerDetail() {
     e.preventDefault();
     if (!id || positions.length === 0) return;
     const { error } = await supabase.rpc("update_player_photo", { p_player_id: id, p_photo_url: photoUrl.trim() || null, p_card_url: cardUrl.trim() || null });
-    if (error) { setMsg("Kaydedilemedi."); return; }
+    if (error) { setMsg("Could not save changes."); return; }
     await supabase.from("players").update({ position: positions[0], positions, overall }).eq("id", id);
-    setMsg("Kaydedildi.");
+    setMsg("Changes saved.");
     setEditing(false);
     loadAll(id);
   }
@@ -67,7 +67,7 @@ export default function PlayerDetail() {
 
   const totals = { goals: stats.reduce((a, x) => a + x.goals, 0), assists: stats.reduce((a, x) => a + x.assists, 0), tackles: stats.reduce((a, x) => a + x.tackles, 0), saves: stats.reduce((a, x) => a + x.saves, 0) };
   const fit = settings?.object_fit ?? "cover";
-  const pos = (player.photo_object_position || settings?.object_position || "center").replace("-", " ");
+  const pos = `${player.photo_position_x ?? 50}% ${player.photo_position_y ?? 50}%`;
   const zoom = player.photo_zoom || settings?.zoom || 100;
   const displayPhoto = player.card_url || player.photo_url;
 
@@ -88,7 +88,7 @@ export default function PlayerDetail() {
         </div>
         {isAdmin && editing && (
           <form onSubmit={savePlayer} className="border-t border-white/10 p-6">
-            <p className="mb-3 text-xs text-white/40">İsim kullanıcı adından otomatik alınır ve değiştirilemez.</p>
+            <p className="mb-3 text-xs text-white/40">The name comes from the username and cannot be changed here.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Normal OVR (0-100)" type="number" value={String(overall)} onChange={(value) => setOverall(Math.min(100, Math.max(0, Number(value))))} />
               <Field label="Photo URL" value={photoUrl} onChange={setPhotoUrl} />

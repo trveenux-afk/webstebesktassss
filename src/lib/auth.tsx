@@ -100,7 +100,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         const detail = error.message.toLowerCase();
         if (detail.includes("already registered") || detail.includes("already been registered") || detail.includes("user already exists")) return "That username is already in use.";
-        if (detail.includes("weak") || detail.includes("pwned") || detail.includes("known to be weak") || detail.includes("easy to guess")) return "That password has been found in data breaches and is not allowed. Choose a stronger, unique password.";
         if (detail.includes("at least") || detail.includes("too short") || detail.includes("6 characters")) return "Password must be at least 6 characters.";
         if (detail.includes("email")) return "That username was not accepted. Please choose another one.";
         console.error("Signup failed:", error.message);
@@ -116,8 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await refreshProfile(data.session);
         return null;
       }
-      // No session (email confirmation) — but for our setup, this shouldn't happen.
-      // Treat as success, prompt sign-in.
       return "Account created. You can now sign in.";
     } catch {
       return "Connection error. Please try again.";

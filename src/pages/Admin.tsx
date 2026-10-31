@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
-import { supabase, type Profile, type SiteSettings, type Player, PLAYER_POSITIONS, type PlayerPosition } from "../lib/supabase";
+import { supabase, type Profile, type Player, PLAYER_POSITIONS, type PlayerPosition } from "../lib/supabase";
 
 export default function Admin() {
   const { session, profile, isAdmin, isOwner, loading, authError, signIn, signUp, signOut } = useAuth();
@@ -13,7 +13,6 @@ export default function Admin() {
   const [tab, setTab] = useState<"users" | "squad" | "photos" | "card">("users");
   const [users, setUsers] = useState<Profile[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<Player[]>([]);
-  const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [editDesc, setEditDesc] = useState("");
 
   const loadUsers = useCallback(async () => {
@@ -26,15 +25,10 @@ export default function Admin() {
     setSquadPlayers((data ?? []) as Player[]);
   }, []);
 
-  const loadSettings = useCallback(async () => {
-    const { data } = await supabase.from("site_settings").select("*").eq("id", 1).maybeSingle();
-    setSettings(data as SiteSettings | null);
-  }, []);
-
   useEffect(() => {
-    if (isAdmin) { loadUsers(); loadSquad(); loadSettings(); }
+    if (isAdmin) { loadUsers(); loadSquad(); }
     if (profile) setEditDesc(profile.description ?? "");
-  }, [isAdmin, profile, loadUsers, loadSquad, loadSettings]);
+  }, [isAdmin, profile, loadUsers, loadSquad]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,15 +51,6 @@ export default function Admin() {
     const { error } = await supabase.rpc("delete_user", { p_user_id: user.user_id });
     setMessage(error ? "Could not delete the user." : `${user.username} was deleted.`);
     if (!error) loadUsers();
-  }
-
-  async function saveSettings() {
-    if (!settings) return;
-    const { error } = await supabase.from("site_settings").update({
-      object_fit: settings.object_fit, object_position: settings.object_position,
-      zoom: settings.zoom, card_size: settings.card_size, updated_at: new Date().toISOString(),
-    }).eq("id", 1);
-    setMessage(error ? "Settings could not be saved." : "Photo settings saved.");
   }
 
   async function saveDescription() {
@@ -95,8 +80,7 @@ export default function Admin() {
           </label>
           <label className="block">
             <span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Password</span>
-            <input type="password" required autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" />
-            {mode === "signup" && <span className="mt-1 block text-[11px] text-white/40">At least 6 characters. Common or leaked passwords (e.g. 123456, password) will be rejected.</span>}
+            <input type="password" required autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" />
           </label>
           {message && <p className="text-sm text-white/70">{message}</p>}
           <button disabled={busy} className="w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition-all-smooth disabled:opacity-50 hover:bg-white/90">
@@ -135,7 +119,7 @@ export default function Admin() {
       <div className="mb-6 flex flex-wrap gap-2">
         <TabButton active={tab === "users"} onClick={() => setTab("users")} label="Users" />
         <TabButton active={tab === "squad"} onClick={() => setTab("squad")} label="Squad" />
-        <TabButton active={tab === "photos"} onClick={() => setTab("photos")} label="Photo Settings" />
+        <TabButton active={tab === "photos"} onClick={() => setTab("photos")} label="Player Photos" />
         <TabButton active={tab === "card"} onClick={() => setTab("card")} label="My Card" />
       </div>
 
@@ -174,9 +158,7 @@ export default function Admin() {
         <SquadManager users={users} squadPlayers={squadPlayers} squadUserIds={squadUserIds} onRefresh={loadSquad} />
       )}
 
-      {tab === "photos" && settings && (
-        <PhotoSettings settings={settings} setSettings={setSettings} onSave={saveSettings} squadPlayers={squadPlayers} onRefresh={loadSquad} />
-      )}
+      {tab === "photos" && <PlayerPhotoEditor squadPlayers={squadPlayers} onRefresh={loadSquad} />}
 
       {tab === "card" && profile && (
         <YourCard profile={profile} description={editDesc} onDesc={setEditDesc} onSave={saveDescription} message={undefined} onSignOut={undefined} />
@@ -280,44 +262,12 @@ function SquadManager({ users, squadPlayers, squadUserIds, onRefresh }: { users:
   );
 }
 
-function PhotoSettings({ settings, setSettings, onSave, squadPlayers, onRefresh }: { settings: SiteSettings; setSettings: (s: SiteSettings) => void; onSave: () => void; squadPlayers: Player[]; onRefresh: () => void }) {
-  const sizeMap = { small: "w-32", medium: "w-48", large: "w-64" };
-
-  return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-white/10 bg-bjk-dark p-6">
-        <h3 className="mb-2 font-display text-lg font-semibold uppercase">Card Display Settings</h3>
-        <p className="mb-4 text-sm text-white/50">Image crop and zoom are set separately for each player below.</p>
-        <div className="mb-4">
-          <span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Card Size</span>
-          <div className="flex gap-2">{(["small", "medium", "large"] as const).map((size) => <button key={size} onClick={() => setSettings({ ...settings, card_size: size })} className={`rounded-lg border px-4 py-2 text-sm transition-all-smooth ${settings.card_size === size ? "border-white bg-white text-black" : "border-white/15 text-white/60 hover:border-white/40"}`}>{size}</button>)}</div>
-        </div>
-        <button onClick={onSave} className="rounded-lg bg-white px-6 py-2 text-sm font-semibold text-black transition-all-smooth hover:bg-white/90">Save Settings</button>
-      </div>
-
-      <PlayerPhotoEditor squadPlayers={squadPlayers} onRefresh={onRefresh} />
-
-      <div className="rounded-xl border border-white/10 bg-bjk-dark p-6">
-        <h3 className="mb-4 font-display text-lg font-semibold uppercase">Live Preview</h3>
-        <div className="flex justify-center">
-          <div className={`${sizeMap[settings.card_size]} overflow-hidden rounded-xl border border-white/20 bg-bjk-black card-enter`}>
-            <div className="relative aspect-[4/3] overflow-hidden bg-bjk-black">
-              <img src="https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg?auto=compress&cs=tinysrgb&w=400" alt="Preview" className="h-full w-full object-cover" />
-              <div className="absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-black/70 font-display text-sm font-bold">85</div>
-            </div>
-            <div className="p-2"><h4 className="truncate font-display text-sm font-semibold uppercase">Sample Player</h4><p className="text-xs text-white/40">OVR 85</p></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]; onRefresh: () => void }) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [cardUrl, setCardUrl] = useState("");
-  const [photoPosition, setPhotoPosition] = useState("center");
+  const [photoPositionX, setPhotoPositionX] = useState(50);
+  const [photoPositionY, setPhotoPositionY] = useState(50);
   const [photoZoom, setPhotoZoom] = useState(100);
   const [msg, setMsg] = useState("");
 
@@ -325,23 +275,33 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
     setEditingPlayer(player);
     setPhotoUrl(player.photo_url ?? "");
     setCardUrl(player.card_url ?? "");
-    setPhotoPosition(player.photo_object_position || "center");
+    setPhotoPositionX(player.photo_position_x ?? 50);
+    setPhotoPositionY(player.photo_position_y ?? 50);
     setPhotoZoom(player.photo_zoom || 100);
     setMsg("");
   }
   async function savePhoto() {
     if (!editingPlayer) return;
-    const { error } = await supabase.rpc("update_player_photo_crop", {
+    const { error } = await supabase.rpc("update_player_photo_crop_drag", {
       p_player_id: editingPlayer.id,
       p_photo_url: photoUrl.trim() || null,
       p_card_url: cardUrl.trim() || null,
-      p_photo_object_position: photoPosition,
       p_photo_zoom: photoZoom,
+      p_photo_position_x: photoPositionX,
+      p_photo_position_y: photoPositionY,
     });
     if (error) { setMsg("Could not save."); return; }
     setMsg("Photo updated.");
     setEditingPlayer(null);
     onRefresh();
+  }
+
+  function moveCrop(event: React.PointerEvent<HTMLDivElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const nextX = Math.max(0, Math.min(100, Math.round(((event.clientX - bounds.left) / bounds.width) * 100)));
+    const nextY = Math.max(0, Math.min(100, Math.round(((event.clientY - bounds.top) / bounds.height) * 100)));
+    setPhotoPositionX(nextX);
+    setPhotoPositionY(nextY);
   }
 
   return (
@@ -361,14 +321,14 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
           {photoUrl && (
             <div className="rounded-xl border border-white/10 bg-bjk-black p-4">
               <div className="mb-3 flex items-center justify-between">
-                <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Move the focus and zoom the image inside the card.</p></div>
+                <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Drag the image to place it inside the card.</p></div>
                 <span className="text-xs text-white/50">{photoZoom}%</span>
               </div>
-              <div className="mx-auto mb-4 aspect-[4/3] max-w-sm overflow-hidden rounded-lg border border-white/15 bg-black">
-                <img src={photoUrl} alt={`${editingPlayer.name} preview`} style={{ objectFit: "cover", objectPosition: photoPosition.replace("-", " "), transform: `scale(${photoZoom / 100})` }} className="h-full w-full" />
+              <div onPointerDown={moveCrop} onPointerMove={(event) => { if (event.buttons === 1) moveCrop(event); }} className="mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-crosshair overflow-hidden rounded-lg border border-white/15 bg-black">
+                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} style={{ objectFit: "cover", objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom / 100})` }} className="pointer-events-none h-full w-full select-none" />
               </div>
-              <label className="block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Focus point</span><select value={photoPosition} onChange={(e) => setPhotoPosition(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm"><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option><option value="top left">Top left</option><option value="top right">Top right</option><option value="bottom left">Bottom left</option><option value="bottom right">Bottom right</option></select></label>
-              <label className="mt-4 block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Zoom</span><input type="range" min={50} max={200} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label>
+              <p className="mb-4 text-center text-xs text-white/40">Click or drag anywhere in the preview to move the image focus.</p>
+              <label className="block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Zoom</span><input type="range" min={50} max={200} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label>
             </div>
           )}
           {msg && <p className="text-sm text-white/70">{msg}</p>}
