@@ -44,7 +44,6 @@ export default function Players() {
 }
 
 function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings: SiteSettings | null; isOwnCard: boolean }) {
-  const [expanded, setExpanded] = useState(false);
   const playerPositions = player.positions?.length ? player.positions : [player.position];
   const fit = settings?.object_fit ?? "cover";
   const pos = `${player.photo_position_x ?? 50}% ${player.photo_position_y ?? 50}%`;
@@ -56,7 +55,7 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
       {isOwnCard && <div className="bg-blue-500/10 px-3 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-blue-300">Your Card</div>}
       <div className="relative aspect-[4/3] overflow-hidden bg-bjk-black">
         {player.photo_url ? (
-          <img src={player.photo_url} alt={player.name} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setExpanded(true); }} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="h-full w-full cursor-zoom-in" />
+          <img src={player.photo_url} alt={player.name} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="pointer-events-none h-full w-full" />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl font-bold text-white/20">{player.name.charAt(0).toUpperCase()}</div>
         )}
@@ -72,7 +71,6 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
         </div>
       </div>
     </Link>
-    {expanded && player.photo_url && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-6" onClick={() => setExpanded(false)}><div className="relative max-h-[90vh] max-w-5xl" onClick={(event) => event.stopPropagation()}><button type="button" aria-label="Close image" onClick={() => setExpanded(false)} className="absolute -right-3 -top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-xl text-black">×</button><img src={player.photo_url} alt={player.name} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" /></div></div>}
     </>
   );
 }

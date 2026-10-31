@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { supabase, type Profile, type Player, PLAYER_POSITIONS, type PlayerPosition } from "../lib/supabase";
 
@@ -270,6 +270,7 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
   const [photoPositionY, setPhotoPositionY] = useState(50);
   const [photoZoom, setPhotoZoom] = useState(100);
   const [msg, setMsg] = useState("");
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
 
   function startEdit(player: Player) {
     setEditingPlayer(player);
@@ -296,12 +297,26 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
     onRefresh();
   }
 
+  function startCropDrag(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    lastPointer.current = { x: event.clientX, y: event.clientY };
+  }
+
   function moveCrop(event: React.PointerEvent<HTMLDivElement>) {
+    const previous = lastPointer.current;
+    if (!previous) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    const nextX = Math.max(0, Math.min(100, Math.round(((event.clientX - bounds.left) / bounds.width) * 100)));
-    const nextY = Math.max(0, Math.min(100, Math.round(((event.clientY - bounds.top) / bounds.height) * 100)));
-    setPhotoPositionX(nextX);
-    setPhotoPositionY(nextY);
+    const deltaX = ((event.clientX - previous.x) / bounds.width) * 100;
+    const deltaY = ((event.clientY - previous.y) / bounds.height) * 100;
+    setPhotoPositionX((value) => Math.max(0, Math.min(100, Math.round(value - deltaX))));
+    setPhotoPositionY((value) => Math.max(0, Math.min(100, Math.round(value - deltaY))));
+    lastPointer.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function stopCropDrag(event: React.PointerEvent<HTMLDivElement>) {
+    lastPointer.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
   return (
@@ -324,8 +339,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
                 <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Drag the image to place it inside the card.</p></div>
                 <span className="text-xs text-white/50">{photoZoom}%</span>
               </div>
-              <div onPointerDown={moveCrop} onPointerMove={(event) => { if (event.buttons === 1) moveCrop(event); }} className="mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-crosshair overflow-hidden rounded-lg border border-white/15 bg-black">
-                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} style={{ objectFit: "cover", objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom / 100})` }} className="pointer-events-none h-full w-full select-none" />
+              <div onDragStart={(event) => event.preventDefault()} onPointerDown={startCropDrag} onPointerMove={moveCrop} onPointerUp={stopCropDrag} onPointerCancel={stopCropDrag} className="mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-grab overflow-hidden rounded-lg border border-white/15 bg-black active:cursor-grabbing">
+                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ objectFit: "cover", objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom / 100})` }} className="pointer-events-none h-full w-full select-none" />
               </div>
               <p className="mb-4 text-center text-xs text-white/40">Click or drag anywhere in the preview to move the image focus.</p>
               <label className="block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Zoom</span><input type="range" min={50} max={200} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label>
