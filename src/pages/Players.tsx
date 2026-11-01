@@ -68,6 +68,7 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
         <h3 className="truncate font-display text-lg font-semibold uppercase tracking-wide">{player.name}</h3>
         <div className="mt-2 flex items-center justify-between">
           <span className="text-xs text-white/40">OVR {player.overall}</span>
+          <span className="rounded-md border border-white/15 px-1.5 py-1 text-[10px] font-semibold text-white/60">{player.positions?.[0] ?? player.position}</span>
         </div>
       </div>
     </Link>

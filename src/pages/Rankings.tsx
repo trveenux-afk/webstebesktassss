@@ -131,8 +131,8 @@ export default function Rankings() {
           No stats recorded yet. Record some scrims to see rankings.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/10">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-white/10 bg-bjk-dark text-left text-xs uppercase tracking-wide text-white/50">
                 <th className="px-4 py-3 text-center">#</th>
@@ -160,7 +160,7 @@ export default function Rankings() {
                 return (
                   <tr
                     key={r.player_id}
-                    className="border-b border-white/5 transition-colors last:border-0 hover:bg-white/5"
+                    className={`border-b border-white/5 transition-colors last:border-0 hover:bg-white/5 ${i === 0 ? "bg-yellow-400/5" : i === 1 ? "translate-y-1 bg-white/[0.03]" : i === 2 ? "translate-y-2 bg-orange-700/[0.04]" : ""}`}
                   >
                     <td className="px-4 py-3 text-center">
                       <span
@@ -186,17 +186,17 @@ export default function Rankings() {
                           <img
                             src={r.player.photo_url}
                             alt={r.player.name}
-                            className="h-8 w-8 rounded-full object-cover"
+                            className={`rounded-full object-cover ${i === 0 ? "h-12 w-12" : i < 3 ? "h-10 w-10" : "h-8 w-8"}`}
                           />
                         ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
+                          <div className={`flex items-center justify-center rounded-full bg-white/10 text-xs font-bold ${i === 0 ? "h-12 w-12" : i < 3 ? "h-10 w-10" : "h-8 w-8"}`}>
                             {r.player.name.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <span className="font-medium">{r.player.name}</span>
+                        <span className="font-medium">{r.player.name.replace(/\b\w/g, (letter) => letter.toUpperCase())}</span>
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-center text-white/60">{r.player.position}</td>
+                    <td className="px-4 py-3 text-center text-white/60">{(r.player.positions?.length ? r.player.positions[0] : r.player.position)}</td>
                     <td className="px-4 py-3 text-center text-white/60">{r.scrim_count}</td>
                     <td className="px-4 py-3 text-center">{r.total_goals}</td>
                     <td className="px-4 py-3 text-center">{r.total_assists}</td>

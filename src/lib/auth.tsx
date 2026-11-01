@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -25,15 +25,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const profileRequest = useRef(0);
 
   async function refreshProfile(nextSession: Session | null) {
-    if (!nextSession) { setProfile(null); return; }
+    const requestId = ++profileRequest.current;
+    if (!nextSession) { setProfile(null); setAuthError(null); return; }
     try {
       const { data, error } = await supabase
         .from("profiles")
         .select("user_id, username, description, photo_url, role, is_owner")
         .eq("user_id", nextSession.user.id)
         .maybeSingle();
+      if (requestId !== profileRequest.current) return;
       if (error) { console.error("Profile load error:", error.message); setAuthError("User information could not be loaded. Please sign in again."); setProfile(null); return; }
       if (!data) {
         // Profile doesn't exist yet — create it via RPC
@@ -72,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       (async () => {
+        setAuthError(null);
         setSession(nextSession);
         await refreshProfile(nextSession);
       })();

@@ -10,10 +10,13 @@ export default function Admin() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const [tab, setTab] = useState<"users" | "squad" | "photos" | "card">("users");
+  const [tab, setTab] = useState<"users" | "squad" | "photos" | "media" | "card">("users");
   const [users, setUsers] = useState<Profile[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<Player[]>([]);
   const [editDesc, setEditDesc] = useState("");
+  const [siteVideoUrl, setSiteVideoUrl] = useState<string | null>(null);
+  const [editingDescriptionUser, setEditingDescriptionUser] = useState<string | null>(null);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const loadUsers = useCallback(async () => {
     const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: true });
@@ -25,10 +28,15 @@ export default function Admin() {
     setSquadPlayers((data ?? []) as Player[]);
   }, []);
 
+  const loadSiteMedia = useCallback(async () => {
+    const { data } = await supabase.from("site_settings").select("background_video_url").eq("id", 1).maybeSingle();
+    setSiteVideoUrl((data as { background_video_url?: string | null } | null)?.background_video_url ?? null);
+  }, []);
+
   useEffect(() => {
-    if (isAdmin) { loadUsers(); loadSquad(); }
+    if (isAdmin) { loadUsers(); loadSquad(); loadSiteMedia(); }
     if (profile) setEditDesc(profile.description ?? "");
-  }, [isAdmin, profile, loadUsers, loadSquad]);
+  }, [isAdmin, profile, loadUsers, loadSquad, loadSiteMedia]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +59,13 @@ export default function Admin() {
     const { error } = await supabase.rpc("delete_user", { p_user_id: user.user_id });
     setMessage(error ? "Could not delete the user." : `${user.username} was deleted.`);
     if (!error) loadUsers();
+  }
+
+  async function saveUserDescription() {
+    if (!editingDescriptionUser) return;
+    const { error } = await supabase.rpc("admin_update_profile_description", { p_user_id: editingDescriptionUser, p_description: descriptionDraft.trim() });
+    setMessage(error ? "Description could not be saved." : "Description updated.");
+    if (!error) { setEditingDescriptionUser(null); loadUsers(); }
   }
 
   async function saveDescription() {
@@ -120,6 +135,7 @@ export default function Admin() {
         <TabButton active={tab === "users"} onClick={() => setTab("users")} label="Users" />
         <TabButton active={tab === "squad"} onClick={() => setTab("squad")} label="Squad" />
         <TabButton active={tab === "photos"} onClick={() => setTab("photos")} label="Player Photos" />
+        <TabButton active={tab === "media"} onClick={() => setTab("media")} label="Site Media" />
         <TabButton active={tab === "card"} onClick={() => setTab("card")} label="My Card" />
       </div>
 
@@ -135,6 +151,7 @@ export default function Admin() {
                 <div>
                   <p className="font-display text-sm font-semibold uppercase">{user.username}</p>
                   <p className="text-xs text-white/40">{user.is_owner ? "Super Admin" : user.role === "admin" ? "Admin" : user.role === "scrim_hoster" ? "Scrim Hoster" : "Member"}</p>
+                  {user.description && <p className="mt-1 max-w-sm truncate text-xs text-white/50">{user.description}</p>}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -147,8 +164,11 @@ export default function Admin() {
                     <RoleButton label="Delete" onClick={() => removeUser(user)} danger />
                   </>
                 )}
+                {isOwner && !user.is_owner && <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />}
                 {user.is_owner && <span className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-400">SUPER ADMIN</span>}
+                {isOwner && !user.is_owner && <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />}
               </div>
+              {editingDescriptionUser === user.user_id && <div className="mt-3 w-full rounded-lg border border-white/10 bg-bjk-black p-3"><textarea value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} maxLength={200} rows={2} className="w-full rounded-lg border border-white/10 bg-bjk-dark px-3 py-2 text-sm" placeholder="Card description" /><div className="mt-2 flex gap-2"><button onClick={saveUserDescription} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black">Save Description</button><button onClick={() => setEditingDescriptionUser(null)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs">Cancel</button></div></div>}
             </div>
           ))}
         </div>
@@ -159,6 +179,8 @@ export default function Admin() {
       )}
 
       {tab === "photos" && <PlayerPhotoEditor squadPlayers={squadPlayers} onRefresh={loadSquad} />}
+
+      {tab === "media" && <SiteMediaEditor currentUrl={siteVideoUrl} onSaved={loadSiteMedia} />}
 
       {tab === "card" && profile && (
         <YourCard profile={profile} description={editDesc} onDesc={setEditDesc} onSave={saveDescription} message={undefined} onSignOut={undefined} />
@@ -262,10 +284,33 @@ function SquadManager({ users, squadPlayers, squadUserIds, onRefresh }: { users:
   );
 }
 
+function SiteMediaEditor({ currentUrl, onSaved }: { currentUrl: string | null; onSaved: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function uploadBackground() {
+    if (!file || file.type !== "video/mp4" || file.size > 50 * 1024 * 1024) { setMessage("Choose an MP4 file up to 50 MB."); return; }
+    setBusy(true); setMessage("");
+    const path = `background/${crypto.randomUUID()}.mp4`;
+    const { error: uploadError } = await supabase.storage.from("site-media").upload(path, file, { contentType: "video/mp4", upsert: false });
+    if (uploadError) { setMessage("The video could not be uploaded."); setBusy(false); return; }
+    const url = supabase.storage.from("site-media").getPublicUrl(path).data.publicUrl;
+    const { error: updateError } = await supabase.from("site_settings").update({ background_video_url: url }).eq("id", 1);
+    setMessage(updateError ? "The background could not be saved." : "Background video updated.");
+    setBusy(false); setFile(null);
+    if (!updateError) onSaved();
+  }
+
+  return <div className="rounded-xl border border-white/10 bg-bjk-dark p-6"><h3 className="mb-2 font-display text-lg font-semibold uppercase">Background Video</h3><p className="mb-4 text-sm text-white/50">Upload an MP4 up to 50 MB. It will play muted behind the site content.</p>{currentUrl && <video src={currentUrl} controls className="mb-4 aspect-video w-full rounded-lg bg-black object-contain" />}<input type="file" accept="video/mp4" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full text-sm text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-black" />{message && <p className="mt-3 text-sm text-white/70">{message}</p>}<button onClick={uploadBackground} disabled={busy || !file} className="mt-4 rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">{busy ? "Uploading..." : "Upload Background"}</button></div>;
+}
+
 function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]; onRefresh: () => void }) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [cardUrl, setCardUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [cardFile, setCardFile] = useState<File | null>(null);
   const [photoPositionX, setPhotoPositionX] = useState(50);
   const [photoPositionY, setPhotoPositionY] = useState(50);
   const [photoZoom, setPhotoZoom] = useState(100);
@@ -276,17 +321,29 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
     setEditingPlayer(player);
     setPhotoUrl(player.photo_url ?? "");
     setCardUrl(player.card_url ?? "");
+    setPhotoFile(null);
+    setCardFile(null);
     setPhotoPositionX(player.photo_position_x ?? 50);
     setPhotoPositionY(player.photo_position_y ?? 50);
     setPhotoZoom(player.photo_zoom || 100);
     setMsg("");
   }
+  async function uploadImage(file: File, kind: "photo" | "card"): Promise<string | null> {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) return null;
+    const path = `${editingPlayer?.id}/${kind}-${crypto.randomUUID()}`;
+    const { error } = await supabase.storage.from("player-photos").upload(path, file, { contentType: file.type, upsert: false });
+    return error ? null : supabase.storage.from("player-photos").getPublicUrl(path).data.publicUrl;
+  }
+
   async function savePhoto() {
     if (!editingPlayer) return;
+    const uploadedPhotoUrl = photoFile ? await uploadImage(photoFile, "photo") : photoUrl.trim() || null;
+    const uploadedCardUrl = cardFile ? await uploadImage(cardFile, "card") : cardUrl.trim() || null;
+    if (photoFile && !uploadedPhotoUrl || cardFile && !uploadedCardUrl) { setMsg("Use JPG, PNG, or WebP images up to 10 MB."); return; }
     const { error } = await supabase.rpc("update_player_photo_crop_drag", {
       p_player_id: editingPlayer.id,
-      p_photo_url: photoUrl.trim() || null,
-      p_card_url: cardUrl.trim() || null,
+      p_photo_url: uploadedPhotoUrl,
+      p_card_url: uploadedCardUrl,
       p_photo_zoom: photoZoom,
       p_photo_position_x: photoPositionX,
       p_photo_position_y: photoPositionY,
@@ -331,8 +388,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
             </div>
             <p className="text-sm font-semibold uppercase">{editingPlayer.name}</p>
           </div>
-          <label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Photo URL</span><input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="https://..." /></label>
-          <label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Card URL</span><input value={cardUrl} onChange={(e) => setCardUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="https://..." /></label>
+          <label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Player Image</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-black" /><input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} className="mt-2 w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="Or paste an image URL" /></label>
+          <label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Card Image</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setCardFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-black" /><input value={cardUrl} onChange={(e) => setCardUrl(e.target.value)} className="mt-2 w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="Or paste an image URL" /></label>
           {photoUrl && (
             <div className="rounded-xl border border-white/10 bg-bjk-black p-4">
               <div className="mb-3 flex items-center justify-between">
