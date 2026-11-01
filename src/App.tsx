@@ -18,8 +18,8 @@ export default function App() {
   const [backgroundVideoUrl, setBackgroundVideoUrl] = useState<string | null>(null);
   const [backgroundVideoVolume, setBackgroundVideoVolume] = useState(50);
   const [backgroundVideoOpacity, setBackgroundVideoOpacity] = useState(20);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const videoAudioEnabled = useRef(false);
   const navLabel = profile ? profile.username : "Sign In";
 
   useEffect(() => {
@@ -39,39 +39,31 @@ export default function App() {
     if (video) {
       const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100;
       video.volume = normalizedVolume * normalizedVolume;
-      video.muted = !videoAudioEnabled.current || backgroundVideoVolume === 0;
+      video.muted = !audioEnabled || backgroundVideoVolume === 0;
     }
-  }, [backgroundVideoVolume, backgroundVideoUrl]);
+  }, [audioEnabled, backgroundVideoVolume, backgroundVideoUrl]);
 
-  useEffect(() => {
-    function enableVideoAudio() {
-      videoAudioEnabled.current = true;
-      const video = videoRef.current;
-      if (!video || backgroundVideoVolume === 0) return;
-      const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100;
-      video.volume = normalizedVolume * normalizedVolume;
-      video.muted = false;
-      void video.play();
-    }
-
-    document.addEventListener("pointerdown", enableVideoAudio, { once: true });
-    document.addEventListener("keydown", enableVideoAudio, { once: true });
-    return () => {
-      document.removeEventListener("pointerdown", enableVideoAudio);
-      document.removeEventListener("keydown", enableVideoAudio);
-    };
-  }, [backgroundVideoVolume]);
+  function toggleAudio() {
+    const nextEnabled = !audioEnabled;
+    setAudioEnabled(nextEnabled);
+    const video = videoRef.current;
+    if (!video) return;
+    const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100;
+    video.volume = normalizedVolume * normalizedVolume;
+    video.muted = !nextEnabled || backgroundVideoVolume === 0;
+    if (nextEnabled) void video.play();
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white">
       <div className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${STADIUM_BG})` }} />
-      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay muted loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover" style={{ opacity: backgroundVideoOpacity / 100 }} aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100; videoRef.current.volume = normalizedVolume * normalizedVolume; videoRef.current.muted = !videoAudioEnabled.current || backgroundVideoVolume === 0; } }} />}
+      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay muted loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover" style={{ opacity: backgroundVideoOpacity / 100 }} aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100; videoRef.current.volume = normalizedVolume * normalizedVolume; videoRef.current.muted = !audioEnabled || backgroundVideoVolume === 0; } }} />}
       <div className="fixed inset-0 bg-black/70" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_15%,rgba(0,0,0,.65)_100%)]" />
       <div className="relative z-10">
         <header className="sticky top-0 z-50 border-b border-white/10 bg-black/85 backdrop-blur-md">
           <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4">
-            <div className="flex shrink-0 items-center gap-3"><img src={BJK_LOGO} alt="Beşiktaş JK" className="h-14 w-11 object-contain" /><h1 className="font-display text-xl font-bold tracking-wide">BEŞİKTAŞ</h1></div>
+            <div className="flex min-w-0 shrink-0 items-center gap-3"><img src={BJK_LOGO} alt="Beşiktaş JK" className="h-14 w-11 object-contain" /><h1 className="font-display text-xl font-bold tracking-wide">BEŞİKTAŞ</h1><button type="button" onClick={toggleAudio} aria-label={audioEnabled ? "Mute background video" : "Unmute background video"} title={audioEnabled ? "Mute background video" : "Unmute background video"} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 transition hover:bg-white hover:text-black">{audioEnabled ? <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2"><path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /></svg> : <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current stroke-2"><path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="m19 9-6 6M13 9l6 6" /></svg>}</button></div>
             <nav className="flex min-w-0 flex-1 justify-end gap-1 overflow-x-auto pb-1 sm:gap-2"><NavItem to="/" label="Squad" /><NavItem to="/scrims" label="Scrims" /><NavItem to="/rankings" label="Rankings" /><NavItem to="/highlights" label="Highlights" /><NavItem to={profile ? "/admin" : "/signin"} label={navLabel} /></nav>
           </div>
         </header>
