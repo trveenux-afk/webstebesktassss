@@ -469,18 +469,29 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
 
   async function savePhoto() {
     if (!editingPlayer) return;
+    setMsg("");
     const uploadedPhotoUrl = photoFile ? await uploadImage(photoFile, "photo") : photoUrl.trim() || null;
     const uploadedCardUrl = cardFile ? await uploadImage(cardFile, "card") : cardUrl.trim() || null;
     if (photoFile && !uploadedPhotoUrl || cardFile && !uploadedCardUrl) { setMsg("Use JPG, PNG, or WebP images up to 10 MB."); return; }
-    const { error } = await supabase.rpc("update_player_photo_crop_drag", {
+    const crop = {
       p_player_id: editingPlayer.id,
       p_photo_url: uploadedPhotoUrl,
       p_card_url: uploadedCardUrl,
-      p_photo_zoom: photoZoom,
-      p_photo_position_x: photoPositionX,
-      p_photo_position_y: photoPositionY,
-    });
-    if (error) { setMsg("Could not save."); return; }
+      p_photo_zoom: Math.max(50, Math.min(300, Math.round(photoZoom))),
+      p_photo_position_x: Math.max(0, Math.min(100, Math.round(photoPositionX))),
+      p_photo_position_y: Math.max(0, Math.min(100, Math.round(photoPositionY))),
+    };
+    const { error: rpcError } = await supabase.rpc("update_player_photo_crop_drag", crop);
+    if (rpcError) {
+      const { error: updateError } = await supabase.from("players").update({
+        photo_url: uploadedPhotoUrl,
+        card_url: uploadedCardUrl,
+        photo_zoom: crop.p_photo_zoom,
+        photo_position_x: crop.p_photo_position_x,
+        photo_position_y: crop.p_photo_position_y,
+      }).eq("id", editingPlayer.id);
+      if (updateError) { setMsg(`Could not save: ${updateError.message}`); return; }
+    }
     setMsg("Photo updated.");
     setEditingPlayer(null);
     onRefresh();
