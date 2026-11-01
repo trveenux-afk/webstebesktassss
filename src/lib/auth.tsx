@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
-type ProfileData = { user_id: string; username: string; description: string; photo_url: string | null; role: string; is_owner: boolean };
+type ProfileData = { user_id: string; username: string; description: string; photo_url: string | null; role: string; is_owner: boolean; is_banned: boolean };
 
 type AuthContextValue = {
   session: Session | null;
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, username, description, photo_url, role, is_owner")
+        .select("user_id, username, description, photo_url, role, is_owner, is_banned")
         .eq("user_id", nextSession.user.id)
         .maybeSingle();
       if (requestId !== profileRequest.current) return;
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (rpcError) { console.error("Profile creation failed:", rpcError.message); setAuthError("Your profile could not be created. Please sign out and sign in again."); setProfile(null); return; }
           const { data: retryData } = await supabase
             .from("profiles")
-            .select("user_id, username, description, photo_url, role, is_owner")
+            .select("user_id, username, description, photo_url, role, is_owner, is_banned")
             .eq("user_id", nextSession.user.id)
             .maybeSingle();
           if (!retryData) setAuthError("Your profile was not found. Please sign in again.");
@@ -55,7 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setAuthError(null);
-      setProfile(data as ProfileData);
+      const profileData = data as ProfileData | null;
+      if (profileData?.is_banned) {
+        await supabase.auth.signOut();
+        setProfile(null);
+        setAuthError("Your account has been banned by an administrator.");
+        return;
+      }
+      setProfile(profileData);
     } catch (err) {
       console.error("Profile refresh error:", err);
       setProfile(null);

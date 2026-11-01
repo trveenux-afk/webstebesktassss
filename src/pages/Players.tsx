@@ -53,7 +53,7 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
     <>
     <Link to={`/player/${player.id}`} className={`group relative block overflow-hidden rounded-xl border transition-all duration-300 hover:z-10 hover:scale-[1.12] hover:shadow-2xl card-enter ${isOwnCard ? "border-blue-500/40 bg-gradient-to-br from-blue-950/50 to-bjk-dark" : "border-white/10 bg-bjk-dark hover:border-white/30"}`}>
       {isOwnCard && <div className="bg-blue-500/10 px-3 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-blue-300">Your Card</div>}
-      <div className="relative aspect-[3/4] overflow-hidden bg-bjk-black">
+      <div className="relative aspect-[4/3] overflow-hidden bg-bjk-black">
         {player.photo_url ? (
           <img src={player.photo_url} alt={player.name} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="pointer-events-none h-full w-full" />
         ) : (

@@ -61,6 +61,20 @@ export default function Admin() {
     if (!error) loadUsers();
   }
 
+  async function banFromUsers(user: Profile) {
+    const { error } = await supabase.rpc("ban_user", { p_user_id: user.user_id });
+    if (error) {
+      const detail = error.message.toLowerCase();
+      if (detail.includes("super admin")) setMessage("Super admin cannot be banned.");
+      else if (detail.includes("admin")) setMessage("Admins cannot be banned.");
+      else if (detail.includes("kendinizi")) setMessage("You cannot ban yourself.");
+      else setMessage("Could not ban user.");
+      return;
+    }
+    setMessage(`${user.username} has been banned.`);
+    loadUsers();
+  }
+
   async function saveUserDescription() {
     if (!editingDescriptionUser) return;
     const { error } = await supabase.rpc("admin_update_profile_description", { p_user_id: editingDescriptionUser, p_description: descriptionDraft.trim() });
@@ -136,7 +150,7 @@ export default function Admin() {
         <TabButton active={tab === "squad"} onClick={() => setTab("squad")} label="Squad" />
         <TabButton active={tab === "photos"} onClick={() => setTab("photos")} label="Player Photos" />
         <TabButton active={tab === "media"} onClick={() => setTab("media")} label="Site Media" />
-        <TabButton active={tab === "bans"} onClick={() => setTab("bans")} label="IP Bans" />
+        <TabButton active={tab === "bans"} onClick={() => setTab("bans")} label="Bans" />
         <TabButton active={tab === "card"} onClick={() => setTab("card")} label="My Card" />
       </div>
 
@@ -163,6 +177,7 @@ export default function Admin() {
                       {user.role !== "scrim_hoster" && <RoleButton label="Make Scrim Hoster" onClick={() => changeRole(user, "scrim_hoster")} />}
                       {user.role === "scrim_hoster" && <RoleButton label="Remove Hoster" onClick={() => changeRole(user, "member")} danger />}
                       <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />
+                      {user.role !== "admin" && <RoleButton label="Ban" onClick={() => banFromUsers(user)} danger />}
                       <RoleButton label="Delete" onClick={() => removeUser(user)} danger />
                     </>
                   )}
@@ -184,7 +199,7 @@ export default function Admin() {
 
       {tab === "media" && <SiteMediaEditor currentUrl={siteVideoUrl} onSaved={loadSiteMedia} />}
 
-      {tab === "bans" && <IpBanManager onMessage={setMessage} />}
+      {tab === "bans" && <UserBanManager onMessage={setMessage} />}
 
       {tab === "card" && profile && (
         <YourCard profile={profile} description={editDesc} onDesc={setEditDesc} onSave={saveDescription} message={undefined} onSignOut={undefined} />
@@ -288,64 +303,82 @@ function SquadManager({ users, squadPlayers, squadUserIds, onRefresh }: { users:
   );
 }
 
-function IpBanManager({ onMessage }: { onMessage: (msg: string) => void }) {
-  const [bannedIps, setBannedIps] = useState<{ id: string; ip_address: string; reason: string | null; created_at: string }[]>([]);
-  const [newIp, setNewIp] = useState("");
-  const [newReason, setNewReason] = useState("");
+function UserBanManager({ onMessage }: { onMessage: (msg: string) => void }) {
+  const [banUsers, setBanUsers] = useState<Profile[]>([]);
   const [msg, setMsg] = useState("");
 
-  const loadBans = useCallback(async () => {
-    const { data } = await supabase.from("banned_ips").select("id, ip_address, reason, created_at").order("created_at", { ascending: false });
-    setBannedIps((data ?? []) as { id: string; ip_address: string; reason: string | null; created_at: string }[]);
+  const loadUsers = useCallback(async () => {
+    const { data } = await supabase.from("profiles").select("user_id, username, description, photo_url, role, is_owner, is_banned, created_at").order("created_at", { ascending: true });
+    setBanUsers((data ?? []) as Profile[]);
   }, []);
 
-  useEffect(() => { loadBans(); }, [loadBans]);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
 
-  async function addBan(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newIp.trim()) { setMsg("Enter an IP address."); return; }
-    const { error } = await supabase.rpc("add_ip_ban", { p_ip_address: newIp.trim(), p_reason: newReason.trim() || null });
-    if (error) { setMsg("Could not add ban: " + error.message); return; }
-    setMsg(`Banned ${newIp.trim()}.`);
-    onMessage(`Banned ${newIp.trim()}.`);
-    setNewIp(""); setNewReason("");
-    loadBans();
+  async function banUser(user: Profile) {
+    const { error } = await supabase.rpc("ban_user", { p_user_id: user.user_id });
+    if (error) {
+      const detail = error.message.toLowerCase();
+      if (detail.includes("super admin")) setMsg("Super admin cannot be banned.");
+      else if (detail.includes("admin")) setMsg("Admins cannot be banned.");
+      else if (detail.includes("kendinizi")) setMsg("You cannot ban yourself.");
+      else setMsg("Could not ban user: " + error.message);
+      return;
+    }
+    setMsg(`${user.username} has been banned.`);
+    onMessage(`${user.username} has been banned.`);
+    loadUsers();
   }
 
-  async function removeBan(ip: string) {
-    const { error } = await supabase.rpc("remove_ip_ban", { p_ip_address: ip });
-    if (error) { setMsg("Could not remove ban."); return; }
-    setMsg(`Unbanned ${ip}.`);
-    onMessage(`Unbanned ${ip}.`);
-    loadBans();
+  async function unbanUser(user: Profile) {
+    const { error } = await supabase.rpc("unban_user", { p_user_id: user.user_id });
+    if (error) { setMsg("Could not unban user."); return; }
+    setMsg(`${user.username} has been unbanned.`);
+    onMessage(`${user.username} has been unbanned.`);
+    loadUsers();
   }
+
+  const bannedUsers = banUsers.filter((u) => u.is_banned);
+  const unbannedUsers = banUsers.filter((u) => !u.is_banned && !u.is_owner && u.role !== "admin");
 
   return (
     <div className="space-y-6">
-      <form onSubmit={addBan} className="rounded-xl border border-white/10 bg-bjk-dark p-6">
-        <h3 className="mb-4 font-display text-lg font-semibold uppercase">Ban an IP Address</h3>
-        <label className="block mb-4"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">IP Address</span><input value={newIp} onChange={(e) => setNewIp(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="e.g. 192.168.1.1" /></label>
-        <label className="block mb-4"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Reason (optional)</span><input value={newReason} onChange={(e) => setNewReason(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="Why is this IP being banned?" /></label>
-        {msg && <p className="mb-3 text-sm text-white/70">{msg}</p>}
-        <button type="submit" className="rounded-lg bg-red-500 px-6 py-2 text-sm font-semibold text-white transition-all-smooth hover:bg-red-600">Ban IP</button>
-      </form>
       <div>
-        <h3 className="mb-3 font-display text-lg font-semibold uppercase">Banned IPs ({bannedIps.length})</h3>
-        {bannedIps.length === 0 ? <p className="text-sm text-white/40">No banned IPs.</p> : (
+        <h3 className="mb-3 font-display text-lg font-semibold uppercase">Banned Users ({bannedUsers.length})</h3>
+        {bannedUsers.length === 0 ? <p className="text-sm text-white/40">No banned users.</p> : (
           <div className="space-y-2">
-            {bannedIps.map((ban) => (
-              <div key={ban.id} className="flex items-center justify-between rounded-lg border border-red-400/20 bg-red-400/5 p-3 card-enter">
-                <div>
-                  <p className="text-sm font-semibold uppercase">{ban.ip_address}</p>
-                  {ban.reason && <p className="text-xs text-white/50">{ban.reason}</p>}
-                  <p className="mt-1 text-xs text-white/30">{new Date(ban.created_at).toLocaleDateString()}</p>
+            {bannedUsers.map((user) => (
+              <div key={user.user_id} className="flex items-center justify-between rounded-lg border border-red-400/20 bg-red-400/5 p-3 card-enter">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-400/30 bg-bjk-black font-display font-bold uppercase text-red-400">{user.username.charAt(0)}</div>
+                  <div>
+                    <p className="text-sm font-semibold uppercase">{user.username}</p>
+                    <p className="text-xs text-red-400/70">Banned</p>
+                  </div>
                 </div>
-                <button onClick={() => removeBan(ban.ip_address)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/80 transition-all-smooth hover:bg-white hover:text-black">Unban</button>
+                <button onClick={() => unbanUser(user)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/80 transition-all-smooth hover:bg-white hover:text-black">Unban</button>
               </div>
             ))}
           </div>
         )}
       </div>
+      <div>
+        <h3 className="mb-3 font-display text-lg font-semibold uppercase">All Users ({unbannedUsers.length})</h3>
+        <div className="space-y-2">
+          {unbannedUsers.map((user) => (
+            <div key={user.user_id} className="flex items-center justify-between rounded-lg border border-white/10 bg-bjk-dark p-3 card-enter">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white/20 bg-bjk-black font-display font-bold uppercase">{user.username.charAt(0)}</div>
+                <div>
+                  <p className="text-sm font-semibold uppercase">{user.username}</p>
+                  <p className="text-xs text-white/40">{user.role === "scrim_hoster" ? "Scrim Hoster" : "Member"}</p>
+                </div>
+              </div>
+              <button onClick={() => banUser(user)} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs text-red-400 transition-all-smooth hover:bg-red-400/10">Ban</button>
+            </div>
+          ))}
+        </div>
+      </div>
+      {msg && <p className="text-sm text-white/70">{msg}</p>}
     </div>
   );
 }
@@ -353,12 +386,15 @@ function IpBanManager({ onMessage }: { onMessage: (msg: string) => void }) {
 function SiteMediaEditor({ currentUrl, onSaved }: { currentUrl: string | null; onSaved: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [volume, setVolume] = useState(50);
+  const [opacity, setOpacity] = useState(20);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.from("site_settings").select("background_video_volume").eq("id", 1).maybeSingle().then(({ data }) => {
-      setVolume((data as { background_video_volume?: number } | null)?.background_video_volume ?? 50);
+    supabase.from("site_settings").select("background_video_volume, background_video_opacity").eq("id", 1).maybeSingle().then(({ data }) => {
+      const settings = data as { background_video_volume?: number; background_video_opacity?: number } | null;
+      setVolume(settings?.background_video_volume ?? 50);
+      setOpacity(settings?.background_video_opacity ?? 20);
     });
   }, []);
 
@@ -381,13 +417,20 @@ function SiteMediaEditor({ currentUrl, onSaved }: { currentUrl: string | null; o
     setMessage(error ? "Volume could not be saved." : `Volume set to ${value}%.`);
   }
 
+  async function saveOpacity(value: number) {
+    setOpacity(value);
+    const { error } = await supabase.from("site_settings").update({ background_video_opacity: value }).eq("id", 1);
+    setMessage(error ? "Opacity could not be saved." : `Opacity set to ${value}%.`);
+  }
+
   return (
     <div className="rounded-xl border border-white/10 bg-bjk-dark p-6">
       <h3 className="mb-2 font-display text-lg font-semibold uppercase">Background Video</h3>
-      <p className="mb-4 text-sm text-white/50">Upload an MP4 up to 200 MB. It will play behind the site content at the volume you set.</p>
+      <p className="mb-4 text-sm text-white/50">Upload an MP4 up to 200 MB. Adjust the volume and opacity below.</p>
       {currentUrl && <video src={currentUrl} controls className="mb-4 aspect-video w-full rounded-lg bg-black object-contain" />}
       <input type="file" accept="video/mp4" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full text-sm text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-black" />
       <div className="mt-4"><label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Background Video Volume — {volume}%</span><input type="range" min={0} max={100} step={1} value={volume} onChange={(e) => saveVolume(Number(e.target.value))} className="w-full" /></label></div>
+      <div className="mt-4"><label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Background Video Opacity — {opacity}%</span><input type="range" min={0} max={100} step={1} value={opacity} onChange={(e) => saveOpacity(Number(e.target.value))} className="w-full" /></label></div>
       {message && <p className="mt-3 text-sm text-white/70">{message}</p>}
       <button onClick={uploadBackground} disabled={busy || !file} className="mt-4 rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">{busy ? "Uploading..." : "Upload Background"}</button>
     </div>

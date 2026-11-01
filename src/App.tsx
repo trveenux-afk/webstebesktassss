@@ -17,27 +17,18 @@ export default function App() {
   const { isAdmin, profile } = useAuth();
   const [backgroundVideoUrl, setBackgroundVideoUrl] = useState<string | null>(null);
   const [backgroundVideoVolume, setBackgroundVideoVolume] = useState(50);
-  const [banned, setBanned] = useState(false);
-  const [banReason, setBanReason] = useState<string | null>(null);
+  const [backgroundVideoOpacity, setBackgroundVideoOpacity] = useState(20);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navLabel = profile ? profile.username : isAdmin ? "Admin" : "Sign In";
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-ip-ban`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` } })
-      .then((res) => res.json())
-      .then((result: { banned?: boolean; reason?: string | null }) => {
-        if (result.banned) { setBanned(true); setBanReason(result.reason ?? null); }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     let active = true;
-    supabase.from("site_settings").select("background_video_url, background_video_volume").eq("id", 1).maybeSingle().then(({ data }) => {
+    supabase.from("site_settings").select("background_video_url, background_video_volume, background_video_opacity").eq("id", 1).maybeSingle().then(({ data }) => {
       if (!active) return;
-      const settings = data as { background_video_url?: string | null; background_video_volume?: number } | null;
+      const settings = data as { background_video_url?: string | null; background_video_volume?: number; background_video_opacity?: number } | null;
       setBackgroundVideoUrl(settings?.background_video_url ?? null);
       setBackgroundVideoVolume(settings?.background_video_volume ?? 50);
+      setBackgroundVideoOpacity(settings?.background_video_opacity ?? 20);
     });
     return () => { active = false; };
   }, []);
@@ -49,23 +40,10 @@ export default function App() {
     }
   }, [backgroundVideoVolume]);
 
-  if (banned) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black px-4 text-white">
-        <div className="max-w-md text-center">
-          <h1 className="font-display text-5xl font-bold uppercase tracking-wider text-red-500">Access Denied</h1>
-          <p className="mt-4 text-lg text-white/70">Your IP address has been banned by an administrator.</p>
-          {banReason && <p className="mt-2 text-sm text-white/50">Reason: {banReason}</p>}
-          <p className="mt-6 text-sm text-white/40">If you believe this is a mistake, contact the site administration.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white">
       <div className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${STADIUM_BG})` }} />
-      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover opacity-20" aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.volume = backgroundVideoVolume / 100; if (backgroundVideoVolume === 0) videoRef.current.muted = true; } }} />}
+      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover" style={{ opacity: backgroundVideoOpacity / 100 }} aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.volume = backgroundVideoVolume / 100; if (backgroundVideoVolume === 0) videoRef.current.muted = true; } }} />}
       <div className="fixed inset-0 bg-black/70" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_15%,rgba(0,0,0,.65)_100%)]" />
       <div className="relative z-10">
