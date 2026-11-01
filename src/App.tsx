@@ -14,12 +14,12 @@ const STADIUM_BG = "/images/xvcxvxvx%20copy.jpg";
 const BJK_LOGO = "https://commons.wikimedia.org/wiki/Special:FilePath/Logo_of_Beşiktaş_JK.svg";
 
 export default function App() {
-  const { isAdmin, profile } = useAuth();
+  const { profile } = useAuth();
   const [backgroundVideoUrl, setBackgroundVideoUrl] = useState<string | null>(null);
   const [backgroundVideoVolume, setBackgroundVideoVolume] = useState(50);
   const [backgroundVideoOpacity, setBackgroundVideoOpacity] = useState(20);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const navLabel = profile ? profile.username : isAdmin ? "Admin" : "Sign In";
+  const navLabel = profile ? profile.username : "Sign In";
 
   useEffect(() => {
     let active = true;
@@ -50,10 +50,10 @@ export default function App() {
         <header className="sticky top-0 z-50 border-b border-white/10 bg-black/85 backdrop-blur-md">
           <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4">
             <div className="flex shrink-0 items-center gap-3"><img src={BJK_LOGO} alt="Beşiktaş JK" className="h-14 w-11 object-contain" /><h1 className="font-display text-xl font-bold tracking-wide">BEŞİKTAŞ</h1></div>
-            <nav className="flex min-w-0 flex-1 justify-end gap-1 overflow-x-auto pb-1 sm:gap-2"><NavItem to="/" label="Squad" /><NavItem to="/scrims" label="Scrims" /><NavItem to="/rankings" label="Rankings" /><NavItem to="/highlights" label="Highlights" /><NavItem to="/admin" label={navLabel} /></nav>
+            <nav className="flex min-w-0 flex-1 justify-end gap-1 overflow-x-auto pb-1 sm:gap-2"><NavItem to="/" label="Squad" /><NavItem to="/scrims" label="Scrims" /><NavItem to="/rankings" label="Rankings" /><NavItem to="/highlights" label="Highlights" /><NavItem to={profile ? "/admin" : "/signin"} label={navLabel} /></nav>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-8"><Routes><Route path="/" element={<Players />} /><Route path="/player/:id" element={<PlayerDetail />} /><Route path="/scrims" element={<Scrims />} /><Route path="/scrim/:id" element={<ScrimDetail />} /><Route path="/rankings" element={<Rankings />} /><Route path="/highlights" element={<Highlights />} /><Route path="/admin" element={<Admin />} /></Routes></main>
+        <main className="mx-auto max-w-6xl px-4 py-8"><Routes><Route path="/" element={<Players />} /><Route path="/player/:id" element={<PlayerDetail />} /><Route path="/scrims" element={<Scrims />} /><Route path="/scrim/:id" element={<ScrimDetail />} /><Route path="/rankings" element={<Rankings />} /><Route path="/highlights" element={<Highlights />} /><Route path="/signin" element={<Admin />} /><Route path="/admin" element={<Admin />} /></Routes></main>
         <footer className="border-t border-white/10 py-6 text-center text-xs text-white/40">Beşiktaş &middot; Black &amp; White</footer>
       </div>
     </div>

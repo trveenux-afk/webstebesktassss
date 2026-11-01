@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUp(username: string, password: string) {
     setAuthError(null);
     const clean = username.trim().toLowerCase();
-    if (!/^[a-z0-9._-]{3,24}$/.test(clean)) return "Username must be 3-24 characters using letters, numbers, dots, dashes, or underscores.";
+    if (!/^[a-z0-9._-]{1,24}$/.test(clean)) return "Username can use letters, numbers, dots, dashes, or underscores.";
     try {
       const { data, error } = await supabase.auth.signUp({ email: emailFor(clean), password });
       if (error) {
