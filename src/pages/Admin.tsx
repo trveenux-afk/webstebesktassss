@@ -496,8 +496,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
     const previous = lastPointer.current;
     if (!previous) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    const deltaX = ((event.clientX - previous.x) / bounds.width) * 50;
-    const deltaY = ((event.clientY - previous.y) / bounds.height) * 50;
+    const deltaX = ((event.clientX - previous.x) / bounds.width) * 100;
+    const deltaY = ((event.clientY - previous.y) / bounds.height) * 100;
     setPhotoPositionX((value) => Math.max(0, Math.min(100, Math.round(value + deltaX))));
     setPhotoPositionY((value) => Math.max(0, Math.min(100, Math.round(value + deltaY))));
     lastPointer.current = { x: event.clientX, y: event.clientY };
@@ -525,14 +525,20 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
           {photoUrl && (
             <div className="rounded-xl border border-white/10 bg-bjk-black p-4">
               <div className="mb-3 flex items-center justify-between">
-                <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Drag the image to place it inside the card.</p></div>
+                <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Drag the image to move it. Use the sliders for fine control.</p></div>
                 <span className="text-xs text-white/50">{photoZoom}%</span>
               </div>
               <div onDragStart={(event) => event.preventDefault()} onPointerDown={startCropDrag} onPointerMove={moveCrop} onPointerUp={stopCropDrag} onPointerCancel={stopCropDrag} className="relative mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-grab overflow-hidden rounded-lg border border-white/15 bg-black active:cursor-grabbing">
-                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ transform: `translate(${((photoPositionX - 50) / 50 * Math.max(0, photoZoom - 100) / 2)}%, ${((photoPositionY - 50) / 50 * Math.max(0, photoZoom - 100) / 2)}%) scale(${photoZoom / 100})`, transformOrigin: "center" }} className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover" />
+                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ objectFit: "cover", objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom / 100})` }} className="pointer-events-none absolute inset-0 h-full w-full select-none" />
               </div>
-              <p className="mb-4 text-center text-xs text-white/40">Drag the image to move it. Use zoom to enlarge, then drag to position.</p>
-              <div className="mb-2 flex items-center justify-between"><label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Zoom — {photoZoom}%</span><input type="range" min={100} max={300} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label></div>
+              <div className="mb-4 flex items-center justify-center gap-2">
+                <button type="button" onClick={() => { setPhotoPositionX((v) => Math.max(0, v - 5)); }} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">&larr;</button>
+                <button type="button" onClick={() => { setPhotoPositionY((v) => Math.max(0, v - 5)); }} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">&uarr;</button>
+                <button type="button" onClick={() => { setPhotoPositionY((v) => Math.min(100, v + 5)); }} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">&darr;</button>
+                <button type="button" onClick={() => { setPhotoPositionX((v) => Math.min(100, v + 5)); }} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">&rarr;</button>
+                <button type="button" onClick={() => { setPhotoPositionX(50); setPhotoPositionY(50); setPhotoZoom(100); }} className="ml-2 rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">Reset</button>
+              </div>
+              <div className="mb-2"><label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Zoom — {photoZoom}%</span><input type="range" min={100} max={300} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label></div>
               <div className="flex gap-2"><label className="flex-1"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Left ↔ Right — {photoPositionX}%</span><input type="range" min={0} max={100} step={1} value={photoPositionX} onChange={(e) => setPhotoPositionX(Number(e.target.value))} className="w-full" /></label><label className="flex-1"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Up ↔ Down — {photoPositionY}%</span><input type="range" min={0} max={100} step={1} value={photoPositionY} onChange={(e) => setPhotoPositionY(Number(e.target.value))} className="w-full" /></label></div>
             </div>
           )}
