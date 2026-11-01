@@ -110,6 +110,7 @@ export default function Admin() {
           <label className="block">
             <span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Password</span>
             <input type="password" required autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" />
+            {mode === "signup" && <span className="mt-1 block text-xs text-white/45">Use at least 8 letters and numbers. No special characters are required.</span>}
           </label>
           {message && <p className="text-sm text-white/70">{message}</p>}
           <button disabled={busy} className="w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition-all-smooth disabled:opacity-50 hover:bg-white/90">
