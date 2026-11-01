@@ -111,7 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         const detail = error.message.toLowerCase();
         if (detail.includes("already registered") || detail.includes("already been registered") || detail.includes("user already exists")) return "That username is already in use.";
-        if (detail.includes("at least") || detail.includes("too short") || detail.includes("6 characters")) return "Password must be at least 6 characters.";
         if (detail.includes("email")) return "That username was not accepted. Please choose another one.";
         console.error("Signup failed:", error.message);
         return "Account creation failed. Please try again.";
