@@ -1,0 +1,9 @@
+{
+  "projectId": "72557390",
+  "functions": {
+    "check-ip-ban": {
+      "hasChanged": false,
+      "hash": "3507b35dddb00db2d73243cb9bc3460568413eb273cd507fd2e4292b6ed3662c"
+    }
+  }
+}

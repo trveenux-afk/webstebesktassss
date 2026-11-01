@@ -17,8 +17,19 @@ export default function App() {
   const { isAdmin, profile } = useAuth();
   const [backgroundVideoUrl, setBackgroundVideoUrl] = useState<string | null>(null);
   const [backgroundVideoVolume, setBackgroundVideoVolume] = useState(50);
+  const [banned, setBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navLabel = profile ? profile.username : isAdmin ? "Admin" : "Sign In";
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-ip-ban`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` } })
+      .then((res) => res.json())
+      .then((result: { banned?: boolean; reason?: string | null }) => {
+        if (result.banned) { setBanned(true); setBanReason(result.reason ?? null); }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -37,6 +48,19 @@ export default function App() {
       videoRef.current.muted = backgroundVideoVolume === 0;
     }
   }, [backgroundVideoVolume]);
+
+  if (banned) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black px-4 text-white">
+        <div className="max-w-md text-center">
+          <h1 className="font-display text-5xl font-bold uppercase tracking-wider text-red-500">Access Denied</h1>
+          <p className="mt-4 text-lg text-white/70">Your IP address has been banned by an administrator.</p>
+          {banReason && <p className="mt-2 text-sm text-white/50">Reason: {banReason}</p>}
+          <p className="mt-6 text-sm text-white/40">If you believe this is a mistake, contact the site administration.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white">

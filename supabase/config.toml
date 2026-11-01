@@ -1,0 +1,2 @@
+[functions.check-ip-ban]
+verify_jwt = false

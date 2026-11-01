@@ -10,7 +10,7 @@ export default function Admin() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const [tab, setTab] = useState<"users" | "squad" | "photos" | "media" | "card">("users");
+  const [tab, setTab] = useState<"users" | "squad" | "photos" | "media" | "bans" | "card">("users");
   const [users, setUsers] = useState<Profile[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<Player[]>([]);
   const [editDesc, setEditDesc] = useState("");
@@ -136,6 +136,7 @@ export default function Admin() {
         <TabButton active={tab === "squad"} onClick={() => setTab("squad")} label="Squad" />
         <TabButton active={tab === "photos"} onClick={() => setTab("photos")} label="Player Photos" />
         <TabButton active={tab === "media"} onClick={() => setTab("media")} label="Site Media" />
+        <TabButton active={tab === "bans"} onClick={() => setTab("bans")} label="IP Bans" />
         <TabButton active={tab === "card"} onClick={() => setTab("card")} label="My Card" />
       </div>
 
@@ -182,6 +183,8 @@ export default function Admin() {
       {tab === "photos" && <PlayerPhotoEditor squadPlayers={squadPlayers} onRefresh={loadSquad} />}
 
       {tab === "media" && <SiteMediaEditor currentUrl={siteVideoUrl} onSaved={loadSiteMedia} />}
+
+      {tab === "bans" && <IpBanManager onMessage={setMessage} />}
 
       {tab === "card" && profile && (
         <YourCard profile={profile} description={editDesc} onDesc={setEditDesc} onSave={saveDescription} message={undefined} onSignOut={undefined} />
@@ -276,6 +279,68 @@ function SquadManager({ users, squadPlayers, squadUserIds, onRefresh }: { users:
                   </div>
                 </div>
                 <button onClick={() => removeFromSquad(p.id, p.name)} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs text-red-400 transition-all-smooth hover:bg-red-400/10">Remove from Squad</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IpBanManager({ onMessage }: { onMessage: (msg: string) => void }) {
+  const [bannedIps, setBannedIps] = useState<{ id: string; ip_address: string; reason: string | null; created_at: string }[]>([]);
+  const [newIp, setNewIp] = useState("");
+  const [newReason, setNewReason] = useState("");
+  const [msg, setMsg] = useState("");
+
+  const loadBans = useCallback(async () => {
+    const { data } = await supabase.from("banned_ips").select("id, ip_address, reason, created_at").order("created_at", { ascending: false });
+    setBannedIps((data ?? []) as { id: string; ip_address: string; reason: string | null; created_at: string }[]);
+  }, []);
+
+  useEffect(() => { loadBans(); }, [loadBans]);
+
+  async function addBan(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newIp.trim()) { setMsg("Enter an IP address."); return; }
+    const { error } = await supabase.rpc("add_ip_ban", { p_ip_address: newIp.trim(), p_reason: newReason.trim() || null });
+    if (error) { setMsg("Could not add ban: " + error.message); return; }
+    setMsg(`Banned ${newIp.trim()}.`);
+    onMessage(`Banned ${newIp.trim()}.`);
+    setNewIp(""); setNewReason("");
+    loadBans();
+  }
+
+  async function removeBan(ip: string) {
+    const { error } = await supabase.rpc("remove_ip_ban", { p_ip_address: ip });
+    if (error) { setMsg("Could not remove ban."); return; }
+    setMsg(`Unbanned ${ip}.`);
+    onMessage(`Unbanned ${ip}.`);
+    loadBans();
+  }
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={addBan} className="rounded-xl border border-white/10 bg-bjk-dark p-6">
+        <h3 className="mb-4 font-display text-lg font-semibold uppercase">Ban an IP Address</h3>
+        <label className="block mb-4"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">IP Address</span><input value={newIp} onChange={(e) => setNewIp(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="e.g. 192.168.1.1" /></label>
+        <label className="block mb-4"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Reason (optional)</span><input value={newReason} onChange={(e) => setNewReason(e.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm" placeholder="Why is this IP being banned?" /></label>
+        {msg && <p className="mb-3 text-sm text-white/70">{msg}</p>}
+        <button type="submit" className="rounded-lg bg-red-500 px-6 py-2 text-sm font-semibold text-white transition-all-smooth hover:bg-red-600">Ban IP</button>
+      </form>
+      <div>
+        <h3 className="mb-3 font-display text-lg font-semibold uppercase">Banned IPs ({bannedIps.length})</h3>
+        {bannedIps.length === 0 ? <p className="text-sm text-white/40">No banned IPs.</p> : (
+          <div className="space-y-2">
+            {bannedIps.map((ban) => (
+              <div key={ban.id} className="flex items-center justify-between rounded-lg border border-red-400/20 bg-red-400/5 p-3 card-enter">
+                <div>
+                  <p className="text-sm font-semibold uppercase">{ban.ip_address}</p>
+                  {ban.reason && <p className="text-xs text-white/50">{ban.reason}</p>}
+                  <p className="mt-1 text-xs text-white/30">{new Date(ban.created_at).toLocaleDateString()}</p>
+                </div>
+                <button onClick={() => removeBan(ban.ip_address)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/80 transition-all-smooth hover:bg-white hover:text-black">Unban</button>
               </div>
             ))}
           </div>
