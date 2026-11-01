@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { supabase } from "./lib/supabase";
@@ -16,20 +16,32 @@ const BJK_LOGO = "https://commons.wikimedia.org/wiki/Special:FilePath/Logo_of_Be
 export default function App() {
   const { isAdmin, profile } = useAuth();
   const [backgroundVideoUrl, setBackgroundVideoUrl] = useState<string | null>(null);
+  const [backgroundVideoVolume, setBackgroundVideoVolume] = useState(50);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const navLabel = profile ? profile.username : isAdmin ? "Admin" : "Sign In";
 
   useEffect(() => {
     let active = true;
-    supabase.from("site_settings").select("background_video_url").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (active) setBackgroundVideoUrl((data as { background_video_url?: string | null } | null)?.background_video_url ?? null);
+    supabase.from("site_settings").select("background_video_url, background_video_volume").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (!active) return;
+      const settings = data as { background_video_url?: string | null; background_video_volume?: number } | null;
+      setBackgroundVideoUrl(settings?.background_video_url ?? null);
+      setBackgroundVideoVolume(settings?.background_video_volume ?? 50);
     });
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = backgroundVideoVolume / 100;
+      videoRef.current.muted = backgroundVideoVolume === 0;
+    }
+  }, [backgroundVideoVolume]);
+
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white">
       <div className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${STADIUM_BG})` }} />
-      {backgroundVideoUrl && <video src={backgroundVideoUrl} autoPlay muted loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover opacity-20" aria-hidden="true" />}
+      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover opacity-20" aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.volume = backgroundVideoVolume / 100; if (backgroundVideoVolume === 0) videoRef.current.muted = true; } }} />}
       <div className="fixed inset-0 bg-black/70" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_15%,rgba(0,0,0,.65)_100%)]" />
       <div className="relative z-10">

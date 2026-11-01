@@ -164,7 +164,6 @@ export default function Admin() {
                     <RoleButton label="Delete" onClick={() => removeUser(user)} danger />
                   </>
                 )}
-                {isOwner && !user.is_owner && <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />}
                 {user.is_owner && <span className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-400">SUPER ADMIN</span>}
                 {isOwner && !user.is_owner && <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />}
               </div>
@@ -286,11 +285,18 @@ function SquadManager({ users, squadPlayers, squadUserIds, onRefresh }: { users:
 
 function SiteMediaEditor({ currentUrl, onSaved }: { currentUrl: string | null; onSaved: () => void }) {
   const [file, setFile] = useState<File | null>(null);
+  const [volume, setVolume] = useState(50);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    supabase.from("site_settings").select("background_video_volume").eq("id", 1).maybeSingle().then(({ data }) => {
+      setVolume((data as { background_video_volume?: number } | null)?.background_video_volume ?? 50);
+    });
+  }, []);
+
   async function uploadBackground() {
-    if (!file || file.type !== "video/mp4" || file.size > 50 * 1024 * 1024) { setMessage("Choose an MP4 file up to 50 MB."); return; }
+    if (!file || file.type !== "video/mp4" || file.size > 200 * 1024 * 1024) { setMessage("Choose an MP4 file up to 200 MB."); return; }
     setBusy(true); setMessage("");
     const path = `background/${crypto.randomUUID()}.mp4`;
     const { error: uploadError } = await supabase.storage.from("site-media").upload(path, file, { contentType: "video/mp4", upsert: false });
@@ -302,7 +308,23 @@ function SiteMediaEditor({ currentUrl, onSaved }: { currentUrl: string | null; o
     if (!updateError) onSaved();
   }
 
-  return <div className="rounded-xl border border-white/10 bg-bjk-dark p-6"><h3 className="mb-2 font-display text-lg font-semibold uppercase">Background Video</h3><p className="mb-4 text-sm text-white/50">Upload an MP4 up to 50 MB. It will play muted behind the site content.</p>{currentUrl && <video src={currentUrl} controls className="mb-4 aspect-video w-full rounded-lg bg-black object-contain" />}<input type="file" accept="video/mp4" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full text-sm text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-black" />{message && <p className="mt-3 text-sm text-white/70">{message}</p>}<button onClick={uploadBackground} disabled={busy || !file} className="mt-4 rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">{busy ? "Uploading..." : "Upload Background"}</button></div>;
+  async function saveVolume(value: number) {
+    setVolume(value);
+    const { error } = await supabase.from("site_settings").update({ background_video_volume: value }).eq("id", 1);
+    setMessage(error ? "Volume could not be saved." : `Volume set to ${value}%.`);
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-bjk-dark p-6">
+      <h3 className="mb-2 font-display text-lg font-semibold uppercase">Background Video</h3>
+      <p className="mb-4 text-sm text-white/50">Upload an MP4 up to 200 MB. It will play behind the site content at the volume you set.</p>
+      {currentUrl && <video src={currentUrl} controls className="mb-4 aspect-video w-full rounded-lg bg-black object-contain" />}
+      <input type="file" accept="video/mp4" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full text-sm text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-black" />
+      <div className="mt-4"><label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Background Video Volume — {volume}%</span><input type="range" min={0} max={100} step={1} value={volume} onChange={(e) => saveVolume(Number(e.target.value))} className="w-full" /></label></div>
+      {message && <p className="mt-3 text-sm text-white/70">{message}</p>}
+      <button onClick={uploadBackground} disabled={busy || !file} className="mt-4 rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">{busy ? "Uploading..." : "Upload Background"}</button>
+    </div>
+  );
 }
 
 function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]; onRefresh: () => void }) {
@@ -366,8 +388,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
     const bounds = event.currentTarget.getBoundingClientRect();
     const deltaX = ((event.clientX - previous.x) / bounds.width) * 100;
     const deltaY = ((event.clientY - previous.y) / bounds.height) * 100;
-    setPhotoPositionX((value) => Math.max(0, Math.min(100, Math.round(value - deltaX))));
-    setPhotoPositionY((value) => Math.max(0, Math.min(100, Math.round(value - deltaY))));
+    setPhotoPositionX((value) => Math.max(0, Math.min(100, Math.round(value + deltaX))));
+    setPhotoPositionY((value) => Math.max(0, Math.min(100, Math.round(value + deltaY))));
     lastPointer.current = { x: event.clientX, y: event.clientY };
   }
 

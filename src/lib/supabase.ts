@@ -14,4 +14,4 @@ export type ScrimWithStats = Scrim & { scrim_stats: (ScrimStat & { players: Play
 export type PlayerWithStats = Player & { total_goals: number; total_assists: number; total_tackles: number; total_saves: number; scrim_count: number; avg_rating: number };
 export type Profile = { user_id: string; username: string; description: string; photo_url: string | null; role: string; is_owner: boolean; created_at?: string };
 export type Highlight = { id: string; user_id: string; video_url: string; title: string; caption: string; created_at: string; profiles: { username: string } | null };
-export type SiteSettings = { id: number; object_fit: "cover" | "contain"; object_position: string; zoom: number; card_size: "small" | "medium" | "large"; background_video_url: string | null; updated_at: string };
+export type SiteSettings = { id: number; object_fit: "cover" | "contain"; object_position: string; zoom: number; card_size: "small" | "medium" | "large"; background_video_url: string | null; background_video_volume: number; updated_at: string };

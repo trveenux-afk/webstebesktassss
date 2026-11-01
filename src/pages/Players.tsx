@@ -60,15 +60,11 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
           <div className="flex h-full items-center justify-center text-6xl font-bold text-white/20">{player.name.charAt(0).toUpperCase()}</div>
         )}
         <div className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-black/70 font-display font-bold">{player.overall}</div>
-        <div className="absolute right-2 top-2 flex max-w-[70%] flex-wrap justify-end gap-1">
-          {playerPositions.map((position) => <span key={position} className="rounded-md border border-white/20 bg-black/70 px-1.5 py-1 text-[10px] font-semibold">{position}</span>)}
-        </div>
       </div>
       <div className="p-3">
         <h3 className="truncate font-display text-lg font-semibold uppercase tracking-wide">{player.name}</h3>
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-white/40">OVR {player.overall}</span>
-          <span className="rounded-md border border-white/15 px-1.5 py-1 text-[10px] font-semibold text-white/60">{player.positions?.[0] ?? player.position}</span>
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {playerPositions.map((position) => <span key={position} className="rounded-md border border-white/15 bg-white/5 px-1.5 py-1 text-[10px] font-semibold text-white/60">{position}</span>)}
         </div>
       </div>
     </Link>

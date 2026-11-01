@@ -75,7 +75,7 @@ export default function Highlights() {
   async function resolveVideoUrl(): Promise<string | null> {
     const cleanUrl = videoUrl.trim();
     if (file) {
-      if (file.type !== "video/mp4" || file.size > 50 * 1024 * 1024 || !session) return null;
+      if (file.type !== "video/mp4" || file.size > 200 * 1024 * 1024 || !session) return null;
       const path = `${session.user.id}/${crypto.randomUUID()}.mp4`;
       const { error: uploadError } = await supabase.storage.from("highlights").upload(path, file, { contentType: "video/mp4", upsert: false });
       if (uploadError) return null;
@@ -89,7 +89,7 @@ export default function Highlights() {
     if (!isAdmin) return;
     setBusy(true); setError("");
     const resolvedUrl = await resolveVideoUrl();
-    if (!resolvedUrl) { setError("Add a valid YouTube URL or an MP4 file up to 50 MB."); setBusy(false); return; }
+    if (!resolvedUrl) { setError("Add a valid YouTube URL or an MP4 file up to 200 MB."); setBusy(false); return; }
     const { error: insertError } = await supabase.from("highlights").insert({ video_url: resolvedUrl, title: title.trim(), caption: caption.trim() });
     if (insertError) { setError("The video could not be added. Please try again."); setBusy(false); return; }
     resetForm(); setShowAdd(false); setBusy(false); load();
