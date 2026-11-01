@@ -19,6 +19,7 @@ export default function App() {
   const [backgroundVideoVolume, setBackgroundVideoVolume] = useState(50);
   const [backgroundVideoOpacity, setBackgroundVideoOpacity] = useState(20);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoAudioEnabled = useRef(false);
   const navLabel = profile ? profile.username : "Sign In";
 
   useEffect(() => {
@@ -34,16 +35,37 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = backgroundVideoVolume / 100;
-      videoRef.current.muted = backgroundVideoVolume === 0;
+    const video = videoRef.current;
+    if (video) {
+      const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100;
+      video.volume = normalizedVolume * normalizedVolume;
+      video.muted = !videoAudioEnabled.current || backgroundVideoVolume === 0;
     }
+  }, [backgroundVideoVolume, backgroundVideoUrl]);
+
+  useEffect(() => {
+    function enableVideoAudio() {
+      videoAudioEnabled.current = true;
+      const video = videoRef.current;
+      if (!video || backgroundVideoVolume === 0) return;
+      const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100;
+      video.volume = normalizedVolume * normalizedVolume;
+      video.muted = false;
+      void video.play();
+    }
+
+    document.addEventListener("pointerdown", enableVideoAudio, { once: true });
+    document.addEventListener("keydown", enableVideoAudio, { once: true });
+    return () => {
+      document.removeEventListener("pointerdown", enableVideoAudio);
+      document.removeEventListener("keydown", enableVideoAudio);
+    };
   }, [backgroundVideoVolume]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white">
       <div className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${STADIUM_BG})` }} />
-      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover" style={{ opacity: backgroundVideoOpacity / 100 }} aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.volume = backgroundVideoVolume / 100; if (backgroundVideoVolume === 0) videoRef.current.muted = true; } }} />}
+      {backgroundVideoUrl && <video ref={videoRef} src={backgroundVideoUrl} autoPlay muted loop playsInline className="pointer-events-none fixed left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 object-cover" style={{ opacity: backgroundVideoOpacity / 100 }} aria-hidden="true" onLoadedMetadata={() => { if (videoRef.current) { const normalizedVolume = Math.max(0, Math.min(100, backgroundVideoVolume)) / 100; videoRef.current.volume = normalizedVolume * normalizedVolume; videoRef.current.muted = !videoAudioEnabled.current || backgroundVideoVolume === 0; } }} />}
       <div className="fixed inset-0 bg-black/70" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_15%,rgba(0,0,0,.65)_100%)]" />
       <div className="relative z-10">
