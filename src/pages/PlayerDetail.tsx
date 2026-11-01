@@ -66,8 +66,8 @@ export default function PlayerDetail() {
   if (!player) return <div className="rounded-xl border border-white/10 bg-bjk-dark p-12 text-center"><p className="text-white/50">Player not found.</p><Link to="/" className="mt-4 inline-block text-sm text-white underline">Back to Squad</Link></div>;
 
   const totals = { goals: stats.reduce((a, x) => a + x.goals, 0), assists: stats.reduce((a, x) => a + x.assists, 0), tackles: stats.reduce((a, x) => a + x.tackles, 0), saves: stats.reduce((a, x) => a + x.saves, 0) };
-  const fit = settings?.object_fit ?? "cover";
-  const pos = `${player.photo_position_x ?? 50}% ${player.photo_position_y ?? 50}%`;
+  const px = player.photo_position_x ?? 50;
+  const py = player.photo_position_y ?? 50;
   const zoom = player.photo_zoom || settings?.zoom || 100;
   const displayPhoto = player.card_url || player.photo_url;
 
@@ -77,7 +77,7 @@ export default function PlayerDetail() {
       <div className="mb-8 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-bjk-gray to-bjk-black">
         <div className="flex flex-col items-center p-8 sm:flex-row sm:items-start sm:gap-8">
           <div className="relative aspect-[4/3] w-52 shrink-0 overflow-hidden rounded-xl border-2 border-white/20 bg-bjk-black">
-            {displayPhoto ? <img src={displayPhoto} alt={player.name} onClick={() => setExpandedPhoto(true)} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="h-full w-full cursor-zoom-in" /> : <div className="flex h-full items-center justify-center text-7xl font-bold text-white/20">{player.name.charAt(0)}</div>}
+            {displayPhoto ? <img src={displayPhoto} alt={player.name} onClick={() => setExpandedPhoto(true)} style={{ objectFit: "contain", objectPosition: "50% 50%", transform: `translate(${(px - 50) / 2}%, ${(py - 50) / 2}%) scale(${zoom / 100})` }} className="h-full w-full cursor-zoom-in" /> : <div className="flex h-full items-center justify-center text-7xl font-bold text-white/20">{player.name.charAt(0)}</div>}
             <div className="absolute left-2 top-2 rounded-full border-2 border-white bg-black/70 px-3 py-2 font-display text-lg font-bold">{player.overall}</div>
           </div>
           <div className="mt-4 flex-1 text-center sm:mt-0 sm:text-left">

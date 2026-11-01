@@ -528,8 +528,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
                 <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Drag the image to move it. Use the sliders for fine control.</p></div>
                 <span className="text-xs text-white/50">{photoZoom}%</span>
               </div>
-              <div onDragStart={(event) => event.preventDefault()} onPointerDown={startCropDrag} onPointerMove={moveCrop} onPointerUp={stopCropDrag} onPointerCancel={stopCropDrag} className="relative mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-grab overflow-hidden rounded-lg border border-white/15 bg-black active:cursor-grabbing">
-                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ objectFit: "cover", objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom / 100})` }} className="pointer-events-none absolute inset-0 h-full w-full select-none" />
+              <div onDragStart={(event) => event.preventDefault()} onPointerDown={startCropDrag} onPointerMove={moveCrop} onPointerUp={stopCropDrag} onPointerCancel={stopCropDrag} className="relative mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-grab overflow-hidden rounded-lg border border-white/15 bg-[#0a0a12] active:cursor-grabbing">
+                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ objectFit: "contain", objectPosition: "50% 50%", transform: `translate(${(photoPositionX - 50) / 2}%, ${(photoPositionY - 50) / 2}%) scale(${photoZoom / 100})` }} className="pointer-events-none absolute inset-0 h-full w-full select-none" />
               </div>
               <div className="mb-4 flex items-center justify-center gap-2">
                 <button type="button" onClick={() => { setPhotoPositionX((v) => Math.max(0, v - 5)); }} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">&larr;</button>

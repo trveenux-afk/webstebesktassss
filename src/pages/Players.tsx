@@ -45,8 +45,8 @@ export default function Players() {
 
 function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings: SiteSettings | null; isOwnCard: boolean }) {
   const playerPositions = player.positions?.length ? player.positions : [player.position];
-  const fit = settings?.object_fit ?? "cover";
-  const pos = `${player.photo_position_x ?? 50}% ${player.photo_position_y ?? 50}%`;
+  const px = player.photo_position_x ?? 50;
+  const py = player.photo_position_y ?? 50;
   const zoom = player.photo_zoom || settings?.zoom || 100;
 
   return (
@@ -55,7 +55,7 @@ function PlayerCard({ player, settings, isOwnCard }: { player: Player; settings:
       {isOwnCard && <div className="bg-blue-500/10 px-3 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-blue-300">Your Card</div>}
       <div className="relative aspect-[4/3] overflow-hidden bg-bjk-black">
         {player.photo_url ? (
-          <img src={player.photo_url} alt={player.name} style={{ objectFit: fit, objectPosition: pos, transform: `scale(${zoom / 100})` }} className="pointer-events-none h-full w-full" />
+          <img src={player.photo_url} alt={player.name} style={{ objectFit: "contain", objectPosition: "50% 50%", transform: `translate(${(px - 50) / 2}%, ${(py - 50) / 2}%) scale(${zoom / 100})` }} className="pointer-events-none h-full w-full" />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl font-bold text-white/20">{player.name.charAt(0).toUpperCase()}</div>
         )}
