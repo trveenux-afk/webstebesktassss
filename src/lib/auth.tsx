@@ -112,8 +112,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const detail = error.message.toLowerCase();
         if (detail.includes("already registered") || detail.includes("already been registered") || detail.includes("user already exists")) return "That username is already in use.";
         if (detail.includes("email")) return "That username was not accepted. Please choose another one.";
+        if (detail.includes("password")) return "This password was rejected by the account service. Please use a different password.";
+        if (detail.includes("rate limit") || detail.includes("too many")) return "Too many attempts. Please wait a moment and try again.";
         console.error("Signup failed:", error.message);
-        return "Account creation failed. Please try again.";
+        return `Account creation failed: ${error.message}`;
       }
       if (data.session) {
         const { error: profileError } = await supabase.rpc("register_profile", { p_username: clean });
