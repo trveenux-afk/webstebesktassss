@@ -145,28 +145,30 @@ export default function Admin() {
         <div className="space-y-3">
           <p className="text-sm text-white/50">{users.length} users total.</p>
           {users.map((user) => (
-            <div key={user.user_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-bjk-dark p-4 card-enter">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/20 bg-bjk-black font-display font-bold uppercase">{user.username.charAt(0)}</div>
-                <div>
-                  <p className="font-display text-sm font-semibold uppercase">{user.username}</p>
-                  <p className="text-xs text-white/40">{user.is_owner ? "Super Admin" : user.role === "admin" ? "Admin" : user.role === "scrim_hoster" ? "Scrim Hoster" : "Member"}</p>
-                  {user.description && <p className="mt-1 max-w-sm truncate text-xs text-white/50">{user.description}</p>}
+            <div key={user.user_id} className="rounded-xl border border-white/10 bg-bjk-dark p-4 card-enter">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/20 bg-bjk-black font-display font-bold uppercase">{user.username.charAt(0)}</div>
+                  <div className="min-w-0">
+                    <p className="font-display text-sm font-semibold uppercase">{user.username}</p>
+                    <p className="text-xs text-white/40">{user.is_owner ? "Super Admin" : user.role === "admin" ? "Admin" : user.role === "scrim_hoster" ? "Scrim Hoster" : "Member"}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {isOwner && !user.is_owner && (
+                    <>
+                      {user.role !== "admin" && <RoleButton label="Make Admin" onClick={() => changeRole(user, "admin")} />}
+                      {user.role === "admin" && <RoleButton label="Remove Admin" onClick={() => changeRole(user, "member")} danger />}
+                      {user.role !== "scrim_hoster" && <RoleButton label="Make Scrim Hoster" onClick={() => changeRole(user, "scrim_hoster")} />}
+                      {user.role === "scrim_hoster" && <RoleButton label="Remove Hoster" onClick={() => changeRole(user, "member")} danger />}
+                      <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />
+                      <RoleButton label="Delete" onClick={() => removeUser(user)} danger />
+                    </>
+                  )}
+                  {user.is_owner && <span className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-400">SUPER ADMIN</span>}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {isOwner && !user.is_owner && (
-                  <>
-                    {user.role !== "admin" && <RoleButton label="Make Admin" onClick={() => changeRole(user, "admin")} />}
-                    {user.role === "admin" && <RoleButton label="Remove Admin" onClick={() => changeRole(user, "member")} danger />}
-                    {user.role !== "scrim_hoster" && <RoleButton label="Make Scrim Hoster" onClick={() => changeRole(user, "scrim_hoster")} />}
-                    {user.role === "scrim_hoster" && <RoleButton label="Remove Hoster" onClick={() => changeRole(user, "member")} danger />}
-                    <RoleButton label="Delete" onClick={() => removeUser(user)} danger />
-                  </>
-                )}
-                {user.is_owner && <span className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-400">SUPER ADMIN</span>}
-                {isOwner && !user.is_owner && <RoleButton label="Edit Description" onClick={() => { setEditingDescriptionUser(user.user_id); setDescriptionDraft(user.description ?? ""); }} />}
-              </div>
+              {user.description && <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-white/50">{user.description}</p>}
               {editingDescriptionUser === user.user_id && <div className="mt-3 w-full rounded-lg border border-white/10 bg-bjk-black p-3"><textarea value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} maxLength={200} rows={2} className="w-full rounded-lg border border-white/10 bg-bjk-dark px-3 py-2 text-sm" placeholder="Card description" /><div className="mt-2 flex gap-2"><button onClick={saveUserDescription} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black">Save Description</button><button onClick={() => setEditingDescriptionUser(null)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs">Cancel</button></div></div>}
             </div>
           ))}
@@ -386,8 +388,8 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
     const previous = lastPointer.current;
     if (!previous) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    const deltaX = ((event.clientX - previous.x) / bounds.width) * 100;
-    const deltaY = ((event.clientY - previous.y) / bounds.height) * 100;
+    const deltaX = ((event.clientX - previous.x) / bounds.width) * 50;
+    const deltaY = ((event.clientY - previous.y) / bounds.height) * 50;
     setPhotoPositionX((value) => Math.max(0, Math.min(100, Math.round(value + deltaX))));
     setPhotoPositionY((value) => Math.max(0, Math.min(100, Math.round(value + deltaY))));
     lastPointer.current = { x: event.clientX, y: event.clientY };
@@ -418,11 +420,12 @@ function PlayerPhotoEditor({ squadPlayers, onRefresh }: { squadPlayers: Player[]
                 <div><p className="text-sm font-semibold">Crop and position</p><p className="text-xs text-white/40">Drag the image to place it inside the card.</p></div>
                 <span className="text-xs text-white/50">{photoZoom}%</span>
               </div>
-              <div onDragStart={(event) => event.preventDefault()} onPointerDown={startCropDrag} onPointerMove={moveCrop} onPointerUp={stopCropDrag} onPointerCancel={stopCropDrag} className="mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-grab overflow-hidden rounded-lg border border-white/15 bg-black active:cursor-grabbing">
-                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ objectFit: "cover", objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom / 100})` }} className="pointer-events-none h-full w-full select-none" />
+              <div onDragStart={(event) => event.preventDefault()} onPointerDown={startCropDrag} onPointerMove={moveCrop} onPointerUp={stopCropDrag} onPointerCancel={stopCropDrag} className="relative mx-auto mb-4 aspect-[4/3] max-w-sm touch-none cursor-grab overflow-hidden rounded-lg border border-white/15 bg-black active:cursor-grabbing">
+                <img src={photoUrl} alt={`${editingPlayer.name} preview`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ transform: `translate(${((photoPositionX - 50) / 50 * Math.max(0, photoZoom - 100) / 2)}%, ${((photoPositionY - 50) / 50 * Math.max(0, photoZoom - 100) / 2)}%) scale(${photoZoom / 100})`, transformOrigin: "center" }} className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover" />
               </div>
-              <p className="mb-4 text-center text-xs text-white/40">Click or drag anywhere in the preview to move the image focus.</p>
-              <label className="block"><span className="mb-2 block text-xs uppercase tracking-wide text-white/50">Zoom</span><input type="range" min={50} max={200} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label>
+              <p className="mb-4 text-center text-xs text-white/40">Drag the image to move it. Use zoom to enlarge, then drag to position.</p>
+              <div className="mb-2 flex items-center justify-between"><label className="block"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Zoom — {photoZoom}%</span><input type="range" min={100} max={300} step={5} value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="w-full" /></label></div>
+              <div className="flex gap-2"><label className="flex-1"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Left ↔ Right — {photoPositionX}%</span><input type="range" min={0} max={100} step={1} value={photoPositionX} onChange={(e) => setPhotoPositionX(Number(e.target.value))} className="w-full" /></label><label className="flex-1"><span className="mb-1 block text-xs uppercase tracking-wide text-white/50">Up ↔ Down — {photoPositionY}%</span><input type="range" min={0} max={100} step={1} value={photoPositionY} onChange={(e) => setPhotoPositionY(Number(e.target.value))} className="w-full" /></label></div>
             </div>
           )}
           {msg && <p className="text-sm text-white/70">{msg}</p>}
