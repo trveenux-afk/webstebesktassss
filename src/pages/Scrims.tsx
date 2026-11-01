@@ -32,12 +32,24 @@ export default function Scrims() {
 
   async function loadAll() {
     const [scrimsRes, playersRes] = await Promise.all([
-      supabase.from("scrims").select("*, scrim_stats(*, players(*)), scrim_lineups(*, players(*))").order("scrim_date", { ascending: false }),
+      supabase.from("scrims").select("*, scrim_stats(*, players(*)), scrim_lineups(*, players(*))").order("created_at", { ascending: false }),
       supabase.from("players").select("*").order("overall", { ascending: false }),
     ]);
     setScrims((scrimsRes.data ?? []) as ScrimWithData[]);
     setPlayers(playersRes.data ?? []);
     setLoading(false);
+  }
+
+  function openAddForm() {
+    setMessage("");
+    setOpponent("");
+    setResult("Win");
+    setTeamScore(0);
+    setOppScore(0);
+    setScrimDate(new Date().toISOString().split("T")[0]);
+    setStatInputs({});
+    setLineup(emptyLineup());
+    setShowAdd(true);
   }
 
   async function addScrim(event: FormEvent) {
@@ -113,7 +125,7 @@ export default function Scrims() {
   const draws = scrims.filter((scrim) => scrim.result === "Draw").length;
   const losses = scrims.filter((scrim) => scrim.result === "Loss").length;
 
-  return <div className="fade-in"><div className="mb-8 flex items-center justify-between"><div><h2 className="font-display text-3xl font-bold uppercase tracking-wide">Scrims</h2><p className="mt-1 text-sm text-white/50">{scrims.length} scrim matches recorded</p></div>{isScrimHoster && <button onClick={() => setShowAdd(!showAdd)} className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium transition-all-smooth hover:bg-white hover:text-black">{showAdd ? "Cancel" : "+ Add Scrim"}</button>}</div>
+  return <div className="fade-in"><div className="mb-8 flex items-center justify-between"><div><h2 className="font-display text-3xl font-bold uppercase tracking-wide">Scrims</h2><p className="mt-1 text-sm text-white/50">{scrims.length} scrim matches recorded</p></div>{isScrimHoster && <button onClick={() => showAdd ? setShowAdd(false) : openAddForm()} className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium transition-all-smooth hover:bg-white hover:text-black">{showAdd ? "Cancel" : "+ Add Scrim"}</button>}</div>
     <div className="mb-6 flex items-center justify-center gap-6 rounded-xl border border-white/10 bg-bjk-dark py-4"><div className="text-center"><span className="font-display text-3xl font-bold text-green-400">{wins}</span><span className="ml-1 text-sm uppercase tracking-wide text-white/50">W</span></div><span className="text-2xl text-white/20">-</span><div className="text-center"><span className="font-display text-3xl font-bold text-white/60">{draws}</span><span className="ml-1 text-sm uppercase tracking-wide text-white/50">D</span></div><span className="text-2xl text-white/20">-</span><div className="text-center"><span className="font-display text-3xl font-bold text-red-400">{losses}</span><span className="ml-1 text-sm uppercase tracking-wide text-white/50">L</span></div></div>
     {message && <p className="mb-4 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{message}</p>}
     {isScrimHoster && showAdd && <ScrimForm title="New Scrim" match={{ opponent, result, teamScore, oppScore, date: scrimDate }} onMatch={(field, value) => { if (field === "opponent") setOpponent(value as string); if (field === "result") setResult(value as string); if (field === "teamScore") setTeamScore(value as number); if (field === "oppScore") setOppScore(value as number); if (field === "date") setScrimDate(value as string); }} players={players} lineup={lineup} onLineup={(position, id) => setLineup((current) => ({ ...current, [position]: id }))} stats={statInputs} onStat={(id, field, value) => updateStat(setStatInputs, id, field, value)} onSubmit={addScrim} submitLabel="Add Scrim" />}
@@ -135,7 +147,7 @@ function LineupEditor({ players, lineup, onChange }: { players: Player[]; lineup
   const selected = new Set(Object.values(lineup).filter(Boolean));
   const visiblePlayers = players.filter((player) => player.name.toLowerCase().includes(search.toLowerCase()) || selected.has(player.id));
   const benchLabel = (position: LineupPosition) => position.startsWith("BENCH_") ? `Sub ${position.replace("BENCH_", "")}` : position;
-  return <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-display text-lg font-semibold uppercase">Starting Lineup</h4><p className="text-xs text-white/50">Choose unique players for each position.</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search players..." aria-label="Search players" className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm sm:w-56" /></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{LINEUP_POSITIONS.map((position) => <PlayerSelect key={position} position={position} label={position} players={visiblePlayers} lineup={lineup} selected={selected} onChange={onChange} />)}</div><h4 className="mb-2 mt-5 font-display text-base font-semibold uppercase text-white/60">Bench / Substitutes (up to 5)</h4><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{BENCH_POSITIONS.map((position) => <PlayerSelect key={position} position={position} label={benchLabel(position)} players={visiblePlayers} lineup={lineup} selected={selected} onChange={onChange} />)}</div></div>;
+  return <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-display text-lg font-semibold uppercase">Starting Lineup</h4><p className="text-xs text-white/50">Choose unique players for each position.</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Search players..." aria-label="Search players" className="w-full rounded-lg border border-white/10 bg-bjk-black px-3 py-2 text-sm sm:w-56" /></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{LINEUP_POSITIONS.map((position) => <PlayerSelect key={position} position={position} label={position} players={visiblePlayers} lineup={lineup} selected={selected} onChange={onChange} />)}</div><h4 className="mb-2 mt-5 font-display text-base font-semibold uppercase text-white/60">Bench / Substitutes (up to 5)</h4><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{BENCH_POSITIONS.map((position) => <PlayerSelect key={position} position={position} label={benchLabel(position)} players={visiblePlayers} lineup={lineup} selected={selected} onChange={onChange} />)}</div></div>;
 }
 
 function PlayerSelect({ position, label, players, lineup, selected, onChange }: { position: LineupPosition; label: string; players: Player[]; lineup: LineupInput; selected: Set<string>; onChange: (position: LineupPosition, id: string) => void }) { return <label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-white/50">{label}</span><select value={lineup[position]} onChange={(event) => onChange(position, event.target.value)} className="w-full rounded-lg border border-white/10 bg-bjk-black px-2 py-2 text-sm"><option value="">Select player</option>{players.map((player) => <option key={player.id} value={player.id} disabled={selected.has(player.id) && lineup[position] !== player.id}>{player.name}</option>)}</select></label>; }
